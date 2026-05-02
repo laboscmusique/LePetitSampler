@@ -12,21 +12,9 @@ const keyboardLayouts = {
   azerty: ["q", "z", "s", "e", "d", "f", "t", "g", "y", "h", "u", "j", "k", "o", "l", "p", "m"]
 };
 
-const playableMidis = Array.from(
-  { length: PLAYABLE_MAX_MIDI - PLAYABLE_MIN_MIDI + 1 },
-  (_, idx) => PLAYABLE_MIN_MIDI + idx
-);
-
 const visualNotes = Array.from(
   { length: VISUAL_MAX_MIDI - VISUAL_MIN_MIDI + 1 },
   (_, idx) => createNote(VISUAL_MIN_MIDI + idx)
-);
-
-const layoutKeyToMidi = Object.fromEntries(
-  Object.entries(keyboardLayouts).map(([layoutName, keys]) => {
-    const pairs = keys.map((key, idx) => [key, playableMidis[idx]]);
-    return [layoutName, new Map(pairs)];
-  })
 );
 
 const whiteKeyCount = visualNotes.filter((note) => note.type === "white").length;
@@ -34,9 +22,12 @@ const whiteKeyCount = visualNotes.filter((note) => note.type === "white").length
 const fileInput = document.getElementById("sampleFile");
 const loadSampleButton = document.getElementById("loadSampleButton");
 const openRecordModalButton = document.getElementById("openRecordModalButton");
-const languageSelect = document.getElementById("languageSelect");
-const keyboardLayoutSelect = document.getElementById("keyboardLayoutSelect");
+const langBtns = document.querySelectorAll(".locale-btn[data-lang]");
+const layoutBtns = document.querySelectorAll(".locale-btn[data-layout]");
+const keyboardOctaveBtns = document.querySelectorAll(".keyboard-octave-btn");
 const sampleName = document.getElementById("sampleName");
+const volumeControl = document.getElementById("volumeControl");
+const volumeValue = document.getElementById("volumeValue");
 const recordModal = document.getElementById("recordModal");
 const closeRecordModalButton = document.getElementById("closeRecordModalButton");
 const refreshRecordInputsButton = document.getElementById("refreshRecordInputsButton");
@@ -46,7 +37,6 @@ const recordStartButton = document.getElementById("recordStartButton");
 const recordStopButton = document.getElementById("recordStopButton");
 const recordTimer = document.getElementById("recordTimer");
 const recordStatus = document.getElementById("recordStatus");
-const recordLiveBadge = document.getElementById("recordLiveBadge");
 const performanceWidget = document.getElementById("performanceWidget");
 const performanceWidgetBody = document.getElementById("performanceWidgetBody");
 const togglePerformanceWidgetButton = document.getElementById("togglePerformanceWidgetButton");
@@ -54,31 +44,36 @@ const performanceStartButton = document.getElementById("performanceStartButton")
 const performanceStopButton = document.getElementById("performanceStopButton");
 const performanceTimer = document.getElementById("performanceTimer");
 const performanceStatus = document.getElementById("performanceStatus");
-const performanceLiveBadge = document.getElementById("performanceLiveBadge");
 const downloadPerformanceWav = document.getElementById("downloadPerformanceWav");
 const downloadPerformanceMp3 = document.getElementById("downloadPerformanceMp3");
 const performanceMp3Hint = document.getElementById("performanceMp3Hint");
 const keyboardRoot = document.getElementById("pianoKeyboard");
 const waveformCanvas = document.getElementById("waveform");
 const canvasCtx = waveformCanvas.getContext("2d");
-const eqLowControl = document.getElementById("eqLowControl");
-const eqLowMidControl = document.getElementById("eqLowMidControl");
-const eqHighMidControl = document.getElementById("eqHighMidControl");
-const eqHighControl = document.getElementById("eqHighControl");
-const eqLowInput = document.getElementById("eqLowInput");
-const eqLowMidInput = document.getElementById("eqLowMidInput");
-const eqHighMidInput = document.getElementById("eqHighMidInput");
-const eqHighInput = document.getElementById("eqHighInput");
+const filterEnabledInput = document.getElementById("filterEnabled");
+const filterToggleLabel = document.getElementById("filterToggleLabel");
+const filterModeLp = document.getElementById("filterModeLp");
+const filterModeHp = document.getElementById("filterModeHp");
+const freqControl = document.getElementById("freqControl");
+const resoControl = document.getElementById("resoControl");
+const freqInput = document.getElementById("freqInput");
+const resoInput = document.getElementById("resoInput");
 const loopEnabledInput = document.getElementById("loopEnabled");
 const resetPlaybackPointsButton = document.getElementById("resetPlaybackPoints");
 const sampleStartInput = document.getElementById("sampleStartInput");
 const loopStartInput = document.getElementById("loopStartInput");
 const loopEndInput = document.getElementById("loopEndInput");
+const sampleStartSlider = document.getElementById("sampleStartSlider");
+const loopStartSlider = document.getElementById("loopStartSlider");
+const loopEndSlider = document.getElementById("loopEndSlider");
 const adsrPanel = document.querySelector(".adsr-panel");
+const filterPanel = document.querySelector(".filter-panel");
+const filterGraphCanvas = document.getElementById("filterGraph");
+const filterGraphCtx = filterGraphCanvas.getContext("2d");
 const adsrGraphCanvas = document.getElementById("adsrGraph");
 const adsrGraphCtx = adsrGraphCanvas.getContext("2d");
-const adsrHelper = document.getElementById("adsrHelper");
 const adsrModeBadge = document.getElementById("adsrModeBadge");
+const adsrToggleLabel = document.getElementById("adsrToggleLabel");
 const adsrEnabledInput = document.getElementById("adsrEnabled");
 const attackControl = document.getElementById("attackControl");
 const decayControl = document.getElementById("decayControl");
@@ -94,6 +89,7 @@ let loadedBuffer = null;
 let renderedBuffer = null;
 let currentLanguage = resolveInitialLanguage();
 let currentLayout = currentLanguage === "fr" ? "azerty" : "qwerty";
+let currentComputerKeyboardOctave = 2;
 let whiteKeyWidth = 54;
 let blackKeyWidth = 34;
 let keybedElement = null;
@@ -104,11 +100,9 @@ let recordingStartTimeMs = 0;
 let recordingTimerId = null;
 let micPermissionState = "unknown";
 let streamDeviceId = "";
-let eqInputGain = null;
-let eqLowNode = null;
-let eqLowMidNode = null;
-let eqHighMidNode = null;
-let eqHighNode = null;
+let filterInputGain = null;
+let filterNodeA = null;
+let filterNodeB = null;
 let masterOutputGain = null;
 let performanceStreamDestination = null;
 let performanceTapNode = null;
@@ -126,14 +120,17 @@ let performanceMp3Url = "";
 let sampleStatus = { key: "sample.none", params: {} };
 let recordStatusState = { key: "record.status.readyToRecord", params: {} };
 let performanceStatusState = { key: "performance.status.ready", params: {} };
+let audioResumePromise = null;
+let performanceTapConnected = false;
 
 const keyElements = new Map();
 const activeVoices = new Map();
 const pressedKeyboardKeyToMidi = new Map();
 const pointerIdToMidi = new Map();
+let layoutKeyToMidi = new Map();
 
 const adsrState = {
-  enabled: true,
+  enabled: false,
   attack: 0.02,
   decay: 0.18,
   sustain: 0.75,
@@ -147,11 +144,15 @@ const playbackState = {
   loopEndNorm: 1
 };
 
-const eqState = {
-  low: 0,
-  lowMid: 0,
-  highMid: 0,
-  high: 0
+const outputState = {
+  volume: 1
+};
+
+const filterState = {
+  enabled: false,
+  type: "lowpass",
+  freq: 1000,
+  Q: 1.0
 };
 
 let activeWaveformMarker = null;
@@ -163,13 +164,15 @@ const translations = {
     "layout.label": "Clavier",
     "common.value": "Valeur",
     "common.stop": "Stop",
-    "app.title": "Mini Sampler",
+    "app.title": "LePetitSampler",
     "app.subtitle": "Charge un sample accordé en C3 et joue-le sur plusieurs notes.",
     "app.base": "Base: C3",
+    "volume.label": "Volume",
     "actions.loadSample": "Charger un sample",
     "actions.recordSample": "Enregistrer un sample",
     "adsr.summary": "Enveloppe ADSR",
     "adsr.enabled": "ADSR activée",
+    "adsr.disabled": "ADSR désactivée",
     "adsr.mode.adsr": "Mode: ADSR",
     "adsr.mode.direct": "Mode: Direct",
     "adsr.helper.enabled": "Attack {attack}s, decay {decay}s, sustain {sustain}%, release {release}s.",
@@ -177,22 +180,26 @@ const translations = {
     "waveform.title": "Waveform",
     "waveform.loopEnabled": "Loop activée",
     "waveform.resetPoints": "Reset points",
-    "waveform.help": "Drag sur la waveform: <strong>Start</strong> (orange), <strong>Loop In</strong> et <strong>Loop Out</strong> (bleu).",
-    "waveform.start": "Start",
+    "waveform.help": "Drag sur la waveform: <strong>Sample Start</strong> (vert), <strong>Loop In</strong> et <strong>Loop Out</strong> (bleu).",
+    "waveform.start": "Sample Start",
     "waveform.loopIn": "Loop In",
     "waveform.loopOut": "Loop Out",
     "waveform.empty": "Charge un fichier audio pour afficher la waveform",
-    "eq.summary": "EQ",
-    "eq.low": "Low",
-    "eq.lowMid": "Low Mid",
-    "eq.highMid": "High Mid",
-    "eq.high": "High",
-    "keyboard.title": "Keyboard",
+    "filter.summary": "Filtre",
+    "filter.enabled": "Filtre activé",
+    "filter.disabled": "Filtre désactivé",
+    "filter.mode.lp": "LP",
+    "filter.mode.hp": "HP",
+    "filter.freq": "Freq",
+    "filter.reso": "Resonance",
+    "keyboard.title": "Clavier",
+    "keyboard.octaveLabel": "Octave clavier ordinateur",
     "recordModal.title": "Enregistrer un sample",
     "recordModal.close": "Fermer",
     "recordModal.audioInput": "Entrée audio",
     "recordModal.refresh": "Actualiser",
     "recordModal.start": "Démarrer",
+    "record.recording": "Enregistrement…",
     "record.badge.ready": "PRÊT",
     "record.badge.recording": "ENREGISTREMENT",
     "record.permission.grantedReady": "Autorisation micro accordée. Entrée prête.",
@@ -245,13 +252,15 @@ const translations = {
     "layout.label": "Keyboard",
     "common.value": "Value",
     "common.stop": "Stop",
-    "app.title": "Mini Sampler",
+    "app.title": "LePetitSampler",
     "app.subtitle": "Load a sample tuned in C3 and play it at different pitches.",
     "app.base": "Base: C3",
+    "volume.label": "Volume",
     "actions.loadSample": "Load a sample",
     "actions.recordSample": "Record a sample",
     "adsr.summary": "ADSR Envelope",
     "adsr.enabled": "ADSR enabled",
+    "adsr.disabled": "ADSR disabled",
     "adsr.mode.adsr": "Mode: ADSR",
     "adsr.mode.direct": "Mode: Direct",
     "adsr.helper.enabled": "Attack {attack}s, decay {decay}s, sustain {sustain}%, release {release}s.",
@@ -259,22 +268,26 @@ const translations = {
     "waveform.title": "Waveform",
     "waveform.loopEnabled": "Loop enabled",
     "waveform.resetPoints": "Reset points",
-    "waveform.help": "Drag on the waveform: <strong>Start</strong> (orange), <strong>Loop In</strong> and <strong>Loop Out</strong> (blue).",
-    "waveform.start": "Start",
+    "waveform.help": "Drag on the waveform: <strong>Sample Start</strong> (green), <strong>Loop In</strong> and <strong>Loop Out</strong> (blue).",
+    "waveform.start": "Sample Start",
     "waveform.loopIn": "Loop In",
     "waveform.loopOut": "Loop Out",
     "waveform.empty": "Load an audio file to display the waveform",
-    "eq.summary": "EQ",
-    "eq.low": "Low",
-    "eq.lowMid": "Low Mid",
-    "eq.highMid": "High Mid",
-    "eq.high": "High",
+    "filter.summary": "Filter",
+    "filter.enabled": "Filter enabled",
+    "filter.disabled": "Filter disabled",
+    "filter.mode.lp": "LP",
+    "filter.mode.hp": "HP",
+    "filter.freq": "Freq",
+    "filter.reso": "Resonance",
     "keyboard.title": "Keyboard",
+    "keyboard.octaveLabel": "Octave for computer keyboard",
     "recordModal.title": "Record a sample",
     "recordModal.close": "Close",
     "recordModal.audioInput": "Audio input",
     "recordModal.refresh": "Refresh",
     "recordModal.start": "Start",
+    "record.recording": "Recording…",
     "record.badge.ready": "READY",
     "record.badge.recording": "RECORDING",
     "record.permission.grantedReady": "Microphone permission granted. Input ready.",
@@ -365,6 +378,23 @@ function setPerformanceStatus(key, params = {}) {
   performanceStatus.textContent = t(key, params);
 }
 
+function computerKeyboardBaseMidi() {
+  return 24 + currentComputerKeyboardOctave * 12;
+}
+
+function rebuildLayoutKeyToMidi() {
+  const keys = keyboardLayouts[currentLayout] || [];
+  const baseMidi = computerKeyboardBaseMidi();
+  const nextMap = new Map();
+  const keyCount = Math.min(12, keys.length);
+
+  for (let idx = 0; idx < keyCount; idx += 1) {
+    nextMap.set(keys[idx], baseMidi + idx);
+  }
+
+  layoutKeyToMidi = nextMap;
+}
+
 function applyStaticTranslations() {
   document.documentElement.lang = currentLanguage;
   document.title = t("app.title");
@@ -403,7 +433,7 @@ function applyDynamicTranslations() {
 function applyLanguage(language, syncLayout = true) {
   if (language !== "fr" && language !== "en") return;
   currentLanguage = language;
-  languageSelect.value = language;
+  langBtns.forEach((btn) => btn.classList.toggle("active", btn.dataset.lang === language));
   if (syncLayout) {
     setKeyboardLayout(preferredLayoutForLanguage(language));
   }
@@ -426,92 +456,114 @@ function createNote(midi) {
   };
 }
 
-function applyEqState() {
-  if (!eqLowNode || !eqLowMidNode || !eqHighMidNode || !eqHighNode || !audioContext) {
+function sliderToFreq(sliderVal) {
+  return 20 * Math.pow(1000, Number.parseFloat(sliderVal) / 1000);
+}
+
+function freqToSlider(freq) {
+  return Math.round(1000 * Math.log(Math.max(freq, 20) / 20) / Math.log(1000));
+}
+
+function applyFilterState() {
+  if (!filterNodeA || !filterNodeB || !audioContext) return;
+  [filterNodeA, filterNodeB].forEach((node) => {
+    node.type = filterState.type;
+    node.frequency.setValueAtTime(filterState.freq, audioContext.currentTime);
+    node.Q.setValueAtTime(filterState.Q, audioContext.currentTime);
+  });
+}
+
+function applyOutputVolume() {
+  if (!masterOutputGain || !audioContext) {
     return;
   }
-
-  eqLowNode.gain.setValueAtTime(eqState.low, audioContext.currentTime);
-  eqLowMidNode.gain.setValueAtTime(eqState.lowMid, audioContext.currentTime);
-  eqHighMidNode.gain.setValueAtTime(eqState.highMid, audioContext.currentTime);
-  eqHighNode.gain.setValueAtTime(eqState.high, audioContext.currentTime);
+  masterOutputGain.gain.setValueAtTime(outputState.volume, audioContext.currentTime);
 }
 
-function syncEqControls() {
-  eqLowControl.value = eqState.low.toFixed(1);
-  eqLowMidControl.value = eqState.lowMid.toFixed(1);
-  eqHighMidControl.value = eqState.highMid.toFixed(1);
-  eqHighControl.value = eqState.high.toFixed(1);
-  eqLowInput.value = eqState.low.toFixed(1);
-  eqLowMidInput.value = eqState.lowMid.toFixed(1);
-  eqHighMidInput.value = eqState.highMid.toFixed(1);
-  eqHighInput.value = eqState.high.toFixed(1);
+function syncVolumeUi() {
+  if (volumeControl) {
+    volumeControl.value = String(Math.round(outputState.volume * 100));
+  }
+  if (volumeValue) {
+    volumeValue.textContent = `${Math.round(outputState.volume * 100)}%`;
+  }
 }
 
-function updateEqFromControls() {
-  eqState.low = clamp(Number.parseFloat(eqLowControl.value) || 0, -18, 18);
-  eqState.lowMid = clamp(Number.parseFloat(eqLowMidControl.value) || 0, -18, 18);
-  eqState.highMid = clamp(Number.parseFloat(eqHighMidControl.value) || 0, -18, 18);
-  eqState.high = clamp(Number.parseFloat(eqHighControl.value) || 0, -18, 18);
-  syncEqControls();
-  applyEqState();
+function updateVolumeFromControl() {
+  outputState.volume = clamp((Number.parseFloat(volumeControl.value) || 0) / 100, 0, 3);
+  syncVolumeUi();
+  applyOutputVolume();
+  redrawWaveform();
 }
 
-function updateEqFromManualInputs() {
-  eqState.low = clamp(Number.parseFloat(eqLowInput.value) || 0, -18, 18);
-  eqState.lowMid = clamp(Number.parseFloat(eqLowMidInput.value) || 0, -18, 18);
-  eqState.highMid = clamp(Number.parseFloat(eqHighMidInput.value) || 0, -18, 18);
-  eqState.high = clamp(Number.parseFloat(eqHighInput.value) || 0, -18, 18);
-  syncEqControls();
-  applyEqState();
+function updateFilterUiState() {
+  const disabled = !filterState.enabled;
+  [freqControl, resoControl, freqInput, resoInput, filterModeLp, filterModeHp].forEach((el) => {
+    el.disabled = disabled;
+  });
+
+  if (filterEnabledInput) filterEnabledInput.checked = filterState.enabled;
+  if (filterPanel) filterPanel.classList.toggle("is-disabled", disabled);
+  if (filterToggleLabel) filterToggleLabel.textContent = filterState.enabled ? t("filter.enabled") : t("filter.disabled");
+
+  filterModeLp.classList.toggle("active", filterState.type === "lowpass");
+  filterModeHp.classList.toggle("active", filterState.type === "highpass");
+}
+
+function syncFilterControls() {
+  freqControl.value = String(freqToSlider(filterState.freq));
+  resoControl.value = filterState.Q.toFixed(2);
+  freqInput.value = String(Math.round(filterState.freq));
+  resoInput.value = filterState.Q.toFixed(1);
+}
+
+function updateFilterFromControls() {
+  filterState.freq = clamp(sliderToFreq(freqControl.value), 20, 20000);
+  filterState.Q = clamp(Number.parseFloat(resoControl.value) || 1, 0.1, 30);
+  syncFilterControls();
+  applyFilterState();
+  renderFilterGraph();
+}
+
+function updateFilterFromManualInputs() {
+  filterState.freq = clamp(Number.parseFloat(freqInput.value) || 1000, 20, 20000);
+  filterState.Q = clamp(Number.parseFloat(resoInput.value) || 1, 0.1, 30);
+  syncFilterControls();
+  applyFilterState();
+  renderFilterGraph();
 }
 
 function ensureAudioContext() {
   if (!audioContext) {
-    audioContext = new AudioContext();
+    audioContext = new AudioContext({ latencyHint: "interactive" });
 
-    eqInputGain = audioContext.createGain();
-    eqLowNode = audioContext.createBiquadFilter();
-    eqLowNode.type = "lowshelf";
-    eqLowNode.frequency.value = 120;
-    eqLowNode.gain.value = eqState.low;
+    filterInputGain = audioContext.createGain();
+    filterNodeA = audioContext.createBiquadFilter();
+    filterNodeA.type = filterState.type;
+    filterNodeA.frequency.value = filterState.freq;
+    filterNodeA.Q.value = filterState.Q;
 
-    eqLowMidNode = audioContext.createBiquadFilter();
-    eqLowMidNode.type = "peaking";
-    eqLowMidNode.frequency.value = 500;
-    eqLowMidNode.Q.value = 1.0;
-    eqLowMidNode.gain.value = eqState.lowMid;
-
-    eqHighMidNode = audioContext.createBiquadFilter();
-    eqHighMidNode.type = "peaking";
-    eqHighMidNode.frequency.value = 2500;
-    eqHighMidNode.Q.value = 1.0;
-    eqHighMidNode.gain.value = eqState.highMid;
-
-    eqHighNode = audioContext.createBiquadFilter();
-    eqHighNode.type = "highshelf";
-    eqHighNode.frequency.value = 8000;
-    eqHighNode.gain.value = eqState.high;
+    filterNodeB = audioContext.createBiquadFilter();
+    filterNodeB.type = filterState.type;
+    filterNodeB.frequency.value = filterState.freq;
+    filterNodeB.Q.value = filterState.Q;
 
     masterOutputGain = audioContext.createGain();
-    masterOutputGain.gain.value = 1;
+    masterOutputGain.gain.value = outputState.volume;
     masterOutputGain.connect(audioContext.destination);
 
-    eqInputGain.connect(eqLowNode);
-    eqLowNode.connect(eqLowMidNode);
-    eqLowMidNode.connect(eqHighMidNode);
-    eqHighMidNode.connect(eqHighNode);
-    eqHighNode.connect(masterOutputGain);
+    filterInputGain.connect(filterNodeA);
+    filterNodeA.connect(filterNodeB);
+    filterNodeB.connect(masterOutputGain);
 
     performanceStreamDestination = audioContext.createMediaStreamDestination();
     masterOutputGain.connect(performanceStreamDestination);
 
-    performanceTapNode = audioContext.createScriptProcessor(4096, 2, 2);
+    performanceTapNode = audioContext.createScriptProcessor(512, 2, 2);
     performanceTapSink = audioContext.createGain();
     performanceTapSink.gain.value = 0;
     performanceTapNode.connect(performanceTapSink);
     performanceTapSink.connect(audioContext.destination);
-    masterOutputGain.connect(performanceTapNode);
     performanceTapNode.onaudioprocess = (event) => {
       if (!performanceIsRecording) {
         return;
@@ -528,11 +580,62 @@ function ensureAudioContext() {
       performanceRecordedSamples += left.length;
     };
 
-    applyEqState();
+    applyFilterState();
+    applyOutputVolume();
   }
-  if (audioContext.state === "suspended") {
-    audioContext.resume();
+}
+
+function setPerformanceTapConnection(connected) {
+  if (!masterOutputGain || !performanceTapNode || performanceTapConnected === connected) {
+    return;
   }
+
+  try {
+    if (connected) {
+      masterOutputGain.connect(performanceTapNode);
+    } else {
+      masterOutputGain.disconnect(performanceTapNode);
+    }
+    performanceTapConnected = connected;
+  } catch (_error) {
+    // No-op: older browsers may throw on duplicate/disconnected states.
+  }
+}
+
+async function ensureAudioRunning() {
+  ensureAudioContext();
+  if (!audioContext) {
+    return false;
+  }
+  if (audioContext.state === "running") {
+    return true;
+  }
+  if (audioContext.state === "closed") {
+    return false;
+  }
+
+  if (!audioResumePromise) {
+    audioResumePromise = audioContext.resume()
+      .catch((error) => {
+        console.error(error);
+      })
+      .finally(() => {
+        audioResumePromise = null;
+      });
+  }
+
+  await audioResumePromise;
+  return audioContext.state === "running";
+}
+
+function isMidiInputHeld(midi) {
+  for (const heldMidi of pressedKeyboardKeyToMidi.values()) {
+    if (heldMidi === midi) return true;
+  }
+  for (const heldMidi of pointerIdToMidi.values()) {
+    if (heldMidi === midi) return true;
+  }
+  return false;
 }
 
 function midiToPlaybackRate(midi) {
@@ -544,7 +647,15 @@ function drawEmptyWaveform() {
   const height = Math.floor(waveformCanvas.clientHeight);
 
   canvasCtx.clearRect(0, 0, width, height);
-  canvasCtx.fillStyle = "rgba(23, 37, 47, 0.42)";
+
+  canvasCtx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+  canvasCtx.lineWidth = 1;
+  canvasCtx.beginPath();
+  canvasCtx.moveTo(0, height / 2);
+  canvasCtx.lineTo(width, height / 2);
+  canvasCtx.stroke();
+
+  canvasCtx.fillStyle = "rgba(242, 245, 255, 0.42)";
   canvasCtx.font = "500 18px Space Grotesk, sans-serif";
   canvasCtx.textAlign = "center";
   canvasCtx.textBaseline = "middle";
@@ -587,15 +698,10 @@ function drawWaveform(audioBuffer) {
   const width = Math.floor(waveformCanvas.clientWidth);
   const height = Math.floor(waveformCanvas.clientHeight);
   const mid = height / 2;
+  const visualVolume = clamp(outputState.volume, 0, 3);
   const samplesPerPixel = Math.floor(channelData.length / width) || 1;
 
   canvasCtx.clearRect(0, 0, width, height);
-
-  const gradient = canvasCtx.createLinearGradient(0, 0, 0, height);
-  gradient.addColorStop(0, "#fefefe");
-  gradient.addColorStop(1, "#e3edf2");
-  canvasCtx.fillStyle = gradient;
-  canvasCtx.fillRect(0, 0, width, height);
 
   if (playbackState.loopEnabled) {
     const loopStartX = playbackState.loopStartNorm * width;
@@ -604,7 +710,7 @@ function drawWaveform(audioBuffer) {
     canvasCtx.fillRect(loopStartX, 0, Math.max(1, loopEndX - loopStartX), height);
   }
 
-  canvasCtx.strokeStyle = "#1d495f";
+  canvasCtx.strokeStyle = "rgba(242, 245, 255, 0.55)";
   canvasCtx.lineWidth = 1;
   canvasCtx.beginPath();
 
@@ -619,15 +725,17 @@ function drawWaveform(audioBuffer) {
       if (value > max) max = value;
     }
 
-    const yTop = mid + min * (mid - 10);
-    const yBottom = mid + max * (mid - 10);
+    const scaledMin = clamp(min * visualVolume, -1, 1);
+    const scaledMax = clamp(max * visualVolume, -1, 1);
+    const yTop = mid + scaledMin * (mid - 10);
+    const yBottom = mid + scaledMax * (mid - 10);
     canvasCtx.moveTo(x, yTop);
     canvasCtx.lineTo(x, yBottom);
   }
 
   canvasCtx.stroke();
 
-  canvasCtx.strokeStyle = "rgba(29, 73, 95, 0.35)";
+  canvasCtx.strokeStyle = "rgba(255, 255, 255, 0.12)";
   canvasCtx.lineWidth = 1;
   canvasCtx.beginPath();
   canvasCtx.moveTo(0, mid);
@@ -641,7 +749,7 @@ function drawWaveform(audioBuffer) {
 function drawWaveformMarkers(width, height) {
   const markerSize = 7;
   const markers = [
-    { id: "sampleStart", x: playbackState.sampleStartNorm * width, color: "#d45f24", label: t("waveform.start") },
+    { id: "sampleStart", x: playbackState.sampleStartNorm * width, color: "#77e086", label: t("waveform.start") },
     { id: "loopStart", x: playbackState.loopStartNorm * width, color: "#2a7aa8", label: t("waveform.loopIn") },
     { id: "loopEnd", x: playbackState.loopEndNorm * width, color: "#2a7aa8", label: t("waveform.loopOut") }
   ];
@@ -661,17 +769,19 @@ function drawWaveformMarkers(width, height) {
 
     canvasCtx.fillStyle = marker.color;
     canvasCtx.beginPath();
-    canvasCtx.moveTo(marker.x, 4);
-    canvasCtx.lineTo(marker.x - markerSize, 14);
-    canvasCtx.lineTo(marker.x + markerSize, 14);
+    canvasCtx.moveTo(marker.x - markerSize, 4);
+    canvasCtx.lineTo(marker.x + markerSize, 4);
+    canvasCtx.lineTo(marker.x, 14);
     canvasCtx.closePath();
     canvasCtx.fill();
 
+    const labelAlignLeft = marker.id !== "loopEnd";
     canvasCtx.fillStyle = marker.color;
     canvasCtx.font = "700 10px Space Grotesk, sans-serif";
-    canvasCtx.textAlign = "center";
+    canvasCtx.textAlign = labelAlignLeft ? "left" : "right";
     canvasCtx.textBaseline = "top";
-    canvasCtx.fillText(marker.label, marker.x, 16);
+    const labelX = labelAlignLeft ? marker.x + markerSize + 3 : marker.x - markerSize - 3;
+    canvasCtx.fillText(marker.label, labelX, 4);
   }
 }
 
@@ -783,6 +893,15 @@ function normalizePlaybackState() {
   }
 }
 
+function syncPlaybackSliders() {
+  sampleStartSlider.value = String(Math.round(playbackState.sampleStartNorm * 1000));
+  loopStartSlider.value = String(Math.round(playbackState.loopStartNorm * 1000));
+  loopEndSlider.value = String(Math.round(playbackState.loopEndNorm * 1000));
+
+  loopStartSlider.disabled = !playbackState.loopEnabled;
+  loopEndSlider.disabled = !playbackState.loopEnabled;
+}
+
 function updatePlaybackUi() {
   const duration = getDurationSeconds();
   const startSeconds = playbackState.sampleStartNorm * duration;
@@ -801,6 +920,8 @@ function updatePlaybackUi() {
 
   loopStartInput.disabled = !playbackState.loopEnabled;
   loopEndInput.disabled = !playbackState.loopEnabled;
+
+  syncPlaybackSliders();
 }
 
 function resetPlaybackState() {
@@ -858,9 +979,8 @@ function updatePerformanceTimer() {
 function updatePerformanceUi() {
   performanceStartButton.disabled = performanceIsRecording;
   performanceStopButton.disabled = !performanceIsRecording;
-  performanceLiveBadge.textContent = performanceIsRecording ? t("performance.badge.recording") : t("performance.badge.ready");
-  performanceLiveBadge.classList.toggle("recording", performanceIsRecording);
-  performanceWidgetBody.classList.toggle("recording-mode", performanceIsRecording);
+  performanceStartButton.textContent = performanceIsRecording ? t("record.recording") : t("performance.start");
+  performanceStartButton.classList.toggle("recording", performanceIsRecording);
   document.body.classList.toggle("is-recording", performanceIsRecording || (mediaRecorder && mediaRecorder.state === "recording"));
 }
 
@@ -974,9 +1094,8 @@ function updateRecordingUi() {
   recordStopButton.disabled = !isSupported || !isRecording;
   recordInputSelect.disabled = !isSupported || isRecording;
   refreshRecordInputsButton.disabled = !isSupported || isRecording;
-  recordLiveBadge.textContent = isRecording ? t("record.badge.recording") : t("record.badge.ready");
-  recordLiveBadge.classList.toggle("recording", isRecording);
-  recordModal.classList.toggle("recording-mode", isRecording);
+  recordStartButton.textContent = isRecording ? t("record.recording") : t("recordModal.start");
+  recordStartButton.classList.toggle("recording", isRecording);
   document.body.classList.toggle("is-recording", isRecording || performanceIsRecording);
 
   if (!isSupported) {
@@ -1127,6 +1246,7 @@ function isRecordModalOpen() {
 
 async function loadSampleFromArrayBuffer(arrayBuffer, label) {
   ensureAudioContext();
+  await ensureAudioRunning();
   stopAllNotes();
   loadedBuffer = await audioContext.decodeAudioData(arrayBuffer);
   resetPlaybackState();
@@ -1260,6 +1380,7 @@ function startPerformanceRecording() {
   }
 
   performanceIsRecording = true;
+  setPerformanceTapConnection(true);
   performanceStartTimeMs = Date.now();
   setPerformanceStatus("performance.status.capturing");
   updatePerformanceTimer();
@@ -1273,6 +1394,7 @@ function stopPerformanceRecording() {
   }
 
   performanceIsRecording = false;
+  setPerformanceTapConnection(false);
   if (performanceTimerId) {
     window.clearInterval(performanceTimerId);
     performanceTimerId = null;
@@ -1346,10 +1468,10 @@ function renderAdsrGraph() {
   adsrGraphCtx.fillText("1", 10, top);
 
   const holdWeight = 0.4;
-  const attackTime = adsrState.enabled ? adsrState.attack : 0.001;
-  const decayTime = adsrState.enabled ? adsrState.decay : 0.001;
-  const releaseTime = adsrState.enabled ? Math.max(adsrState.release, 0.001) : 0.001;
-  const sustainLevel = adsrState.enabled ? Math.max(adsrState.sustain, 0.0001) : 1;
+  const attackTime = adsrState.attack;
+  const decayTime = adsrState.decay;
+  const releaseTime = Math.max(adsrState.release, 0.001);
+  const sustainLevel = Math.max(adsrState.sustain, 0.0001);
 
   const totalWeight = attackTime + decayTime + holdWeight + releaseTime;
   const x0 = left;
@@ -1362,7 +1484,7 @@ function renderAdsrGraph() {
   const yPeak = top;
   const ySustain = top + innerHeight * (1 - sustainLevel);
 
-  adsrGraphCtx.fillStyle = "rgba(240, 127, 69, 0.22)";
+  adsrGraphCtx.fillStyle = "rgba(255, 79, 89, 0.24)";
   adsrGraphCtx.beginPath();
   adsrGraphCtx.moveTo(x0, y0);
   adsrGraphCtx.lineTo(xA, yPeak);
@@ -1372,7 +1494,7 @@ function renderAdsrGraph() {
   adsrGraphCtx.closePath();
   adsrGraphCtx.fill();
 
-  adsrGraphCtx.strokeStyle = adsrState.enabled ? "#d45f24" : "#5f6e78";
+  adsrGraphCtx.strokeStyle = adsrState.enabled ? "#ff4f59" : "rgba(255, 79, 89, 0.6)";
   adsrGraphCtx.lineWidth = 2.2;
   adsrGraphCtx.beginPath();
   adsrGraphCtx.moveTo(x0, y0);
@@ -1440,21 +1562,193 @@ function updateAdsrStateFromInputs(source = "slider") {
   sustainInput.disabled = !adsrState.enabled;
   releaseInput.disabled = !adsrState.enabled;
   adsrPanel.classList.toggle("is-disabled", !adsrState.enabled);
+  adsrToggleLabel.textContent = adsrState.enabled ? t("adsr.enabled") : t("adsr.disabled");
 
   if (adsrState.enabled) {
     adsrModeBadge.textContent = t("adsr.mode.adsr");
-    adsrHelper.textContent = t("adsr.helper.enabled", {
-      attack: adsrState.attack.toFixed(2),
-      decay: adsrState.decay.toFixed(2),
-      sustain: Math.round(adsrState.sustain * 100),
-      release: adsrState.release.toFixed(2)
-    });
   } else {
     adsrModeBadge.textContent = t("adsr.mode.direct");
-    adsrHelper.textContent = t("adsr.helper.direct");
   }
 
   renderAdsrGraph();
+}
+
+function resizeFilterGraphCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const displayWidth = Math.max(300, Math.floor(filterGraphCanvas.clientWidth));
+  const displayHeight = Math.max(130, Math.floor(filterGraphCanvas.clientHeight));
+
+  filterGraphCanvas.width = Math.floor(displayWidth * dpr);
+  filterGraphCanvas.height = Math.floor(displayHeight * dpr);
+  filterGraphCtx.setTransform(1, 0, 0, 1, 0, 0);
+  filterGraphCtx.scale(dpr, dpr);
+}
+
+function computeFilterMagResponse(filterType, cutoffFreq, q, sampleRate, freqPoints) {
+  const w0 = 2 * Math.PI * cutoffFreq / sampleRate;
+  const sinW0 = Math.sin(w0);
+  const cosW0 = Math.cos(w0);
+  const alpha = sinW0 / (2 * q);
+
+  let b0, b1, b2;
+  const a0 = 1 + alpha;
+  const a1 = -2 * cosW0;
+  const a2 = 1 - alpha;
+
+  if (filterType === "lowpass") {
+    b0 = (1 - cosW0) / 2;
+    b1 = 1 - cosW0;
+    b2 = (1 - cosW0) / 2;
+  } else {
+    b0 = (1 + cosW0) / 2;
+    b1 = -(1 + cosW0);
+    b2 = (1 + cosW0) / 2;
+  }
+
+  const response = new Float32Array(freqPoints.length);
+
+  for (let i = 0; i < freqPoints.length; i++) {
+    const w = 2 * Math.PI * freqPoints[i] / sampleRate;
+    const cosW = Math.cos(w);
+    const sinW = Math.sin(w);
+    const cos2W = Math.cos(2 * w);
+    const sin2W = Math.sin(2 * w);
+
+    const numReal = b0 + b1 * cosW + b2 * cos2W;
+    const numImag = b1 * sinW + b2 * sin2W;
+    const denReal = a0 + a1 * cosW + a2 * cos2W;
+    const denImag = a1 * sinW + a2 * sin2W;
+
+    const numMag2 = numReal * numReal + numImag * numImag;
+    const denMag2 = denReal * denReal + denImag * denImag;
+
+    response[i] = Math.sqrt(numMag2 / Math.max(denMag2, 1e-20));
+  }
+
+  return response;
+}
+
+function filterFreqToX(freq, left, innerWidth) {
+  const minLog = Math.log(20);
+  const maxLog = Math.log(20000);
+  return left + innerWidth * (Math.log(Math.max(freq, 20)) - minLog) / (maxLog - minLog);
+}
+
+function renderFilterGraph() {
+  const width = Math.floor(filterGraphCanvas.clientWidth);
+  const height = Math.floor(filterGraphCanvas.clientHeight);
+  const left = 36;
+  const right = width - 12;
+  const top = 10;
+  const bottom = height - 24;
+  const innerWidth = right - left;
+  const innerHeight = bottom - top;
+
+  const dbMin = -40;
+  const dbMax = 60;
+  const dbRange = dbMax - dbMin;
+
+  filterGraphCtx.clearRect(0, 0, width, height);
+
+  filterGraphCtx.strokeStyle = "rgba(23, 37, 47, 0.14)";
+  filterGraphCtx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = top + (innerHeight / 4) * i;
+    filterGraphCtx.beginPath();
+    filterGraphCtx.moveTo(left, y);
+    filterGraphCtx.lineTo(right, y);
+    filterGraphCtx.stroke();
+  }
+
+  const freqGridLines = [100, 1000, 10000];
+  for (const f of freqGridLines) {
+    const x = filterFreqToX(f, left, innerWidth);
+    filterGraphCtx.beginPath();
+    filterGraphCtx.moveTo(x, top);
+    filterGraphCtx.lineTo(x, bottom);
+    filterGraphCtx.stroke();
+  }
+
+  filterGraphCtx.fillStyle = "rgba(34, 58, 71, 0.56)";
+  filterGraphCtx.font = "500 10px Space Grotesk, sans-serif";
+  filterGraphCtx.textAlign = "right";
+  filterGraphCtx.textBaseline = "middle";
+  filterGraphCtx.fillText(`+${dbMax}`, left - 4, top);
+  const y0db = top + innerHeight * (1 - (0 - dbMin) / dbRange);
+  filterGraphCtx.fillText("0", left - 4, y0db);
+  filterGraphCtx.fillText(`${dbMin}`, left - 4, bottom);
+
+  filterGraphCtx.textAlign = "center";
+  filterGraphCtx.textBaseline = "top";
+  for (const f of freqGridLines) {
+    const x = filterFreqToX(f, left, innerWidth);
+    const label = f >= 1000 ? `${f / 1000}k` : String(f);
+    filterGraphCtx.fillText(label, x, bottom + 4);
+  }
+
+  const sr = audioContext?.sampleRate || 44100;
+  const numPoints = innerWidth;
+  const minLog = Math.log(20);
+  const maxLog = Math.log(20000);
+  const freqPoints = new Float32Array(numPoints);
+  for (let i = 0; i < numPoints; i++) {
+    freqPoints[i] = Math.exp(minLog + (maxLog - minLog) * (i / Math.max(numPoints - 1, 1)));
+  }
+
+  const magResponse = computeFilterMagResponse(
+    filterState.type,
+    filterState.freq,
+    filterState.Q,
+    sr,
+    freqPoints
+  );
+
+  for (let i = 0; i < magResponse.length; i++) {
+    magResponse[i] *= magResponse[i];
+  }
+
+  const isActive = filterState.enabled;
+  const curveFill = isActive ? "rgba(62, 184, 255, 0.18)" : "rgba(62, 184, 255, 0.06)";
+  const curveStroke = isActive ? "#3eb8ff" : "rgba(62, 184, 255, 0.4)";
+
+  filterGraphCtx.fillStyle = curveFill;
+  filterGraphCtx.beginPath();
+  filterGraphCtx.moveTo(left, bottom);
+  for (let i = 0; i < numPoints; i++) {
+    const db = 20 * Math.log10(Math.max(magResponse[i], 1e-10));
+    const clampedDb = clamp(db, dbMin, dbMax);
+    const y = top + innerHeight * (1 - (clampedDb - dbMin) / dbRange);
+    filterGraphCtx.lineTo(left + i, y);
+  }
+  filterGraphCtx.lineTo(right, bottom);
+  filterGraphCtx.closePath();
+  filterGraphCtx.fill();
+
+  filterGraphCtx.strokeStyle = curveStroke;
+  filterGraphCtx.lineWidth = 2.2;
+  filterGraphCtx.beginPath();
+  for (let i = 0; i < numPoints; i++) {
+    const db = 20 * Math.log10(Math.max(magResponse[i], 1e-10));
+    const clampedDb = clamp(db, dbMin, dbMax);
+    const y = top + innerHeight * (1 - (clampedDb - dbMin) / dbRange);
+    if (i === 0) {
+      filterGraphCtx.moveTo(left + i, y);
+    } else {
+      filterGraphCtx.lineTo(left + i, y);
+    }
+  }
+  filterGraphCtx.stroke();
+
+  if (isActive) {
+    const cutoffX = filterFreqToX(filterState.freq, left, innerWidth);
+    filterGraphCtx.strokeStyle = "rgba(62, 184, 255, 0.35)";
+    filterGraphCtx.setLineDash([4, 4]);
+    filterGraphCtx.beginPath();
+    filterGraphCtx.moveTo(cutoffX, top);
+    filterGraphCtx.lineTo(cutoffX, bottom);
+    filterGraphCtx.stroke();
+    filterGraphCtx.setLineDash([]);
+  }
 }
 
 function startNote(midi) {
@@ -1468,6 +1762,14 @@ function startNote(midi) {
   }
 
   ensureAudioContext();
+  if (audioContext.state !== "running") {
+    ensureAudioRunning().then((isReady) => {
+      if (isReady && !activeVoices.has(midi) && isMidiInputHeld(midi)) {
+        startNote(midi);
+      }
+    });
+    return;
+  }
   normalizePlaybackState();
 
   const source = audioContext.createBufferSource();
@@ -1504,7 +1806,10 @@ function startNote(midi) {
   }
 
   source.connect(gain);
-  gain.connect(eqInputGain || masterOutputGain || audioContext.destination);
+  const inputTarget = filterState.enabled
+    ? (filterInputGain || masterOutputGain || audioContext.destination)
+    : (masterOutputGain || audioContext.destination);
+  gain.connect(inputTarget);
 
   source.onended = () => {
     const voice = activeVoices.get(midi);
@@ -1565,11 +1870,12 @@ function stopAllNotes() {
 }
 
 function getShortcutForMidi(midi) {
-  const noteIndex = midi - PLAYABLE_MIN_MIDI;
-  if (noteIndex < 0 || noteIndex >= playableMidis.length) {
-    return null;
+  for (const [key, mappedMidi] of layoutKeyToMidi.entries()) {
+    if (mappedMidi === midi) {
+      return key.toUpperCase();
+    }
   }
-  return keyboardLayouts[currentLayout][noteIndex].toUpperCase();
+  return null;
 }
 
 function createKeyLabel(note, shortcut) {
@@ -1690,8 +1996,23 @@ function normalizedEventKey(key) {
 function setKeyboardLayout(layoutName) {
   if (!(layoutName in keyboardLayouts)) return;
   currentLayout = layoutName;
-  keyboardLayoutSelect.value = layoutName;
+  layoutBtns.forEach((btn) => btn.classList.toggle("active", btn.dataset.layout === layoutName));
   clearPressedStates();
+  rebuildLayoutKeyToMidi();
+  refreshKeyboardLabels();
+}
+
+function setComputerKeyboardOctave(nextValue) {
+  const parsed = Number.parseInt(nextValue, 10);
+  if (![1, 2, 3].includes(parsed)) {
+    return;
+  }
+  currentComputerKeyboardOctave = parsed;
+  keyboardOctaveBtns.forEach((btn) => {
+    btn.classList.toggle("active", Number.parseInt(btn.dataset.octave, 10) === parsed);
+  });
+  clearPressedStates();
+  rebuildLayoutKeyToMidi();
   refreshKeyboardLabels();
 }
 
@@ -1714,12 +2035,18 @@ fileInput.addEventListener("change", async (event) => {
   }
 });
 
-languageSelect.addEventListener("change", () => {
-  applyLanguage(languageSelect.value, true);
+langBtns.forEach((btn) => {
+  btn.addEventListener("click", () => applyLanguage(btn.dataset.lang, true));
 });
 
-keyboardLayoutSelect.addEventListener("change", () => {
-  setKeyboardLayout(keyboardLayoutSelect.value);
+layoutBtns.forEach((btn) => {
+  btn.addEventListener("click", () => setKeyboardLayout(btn.dataset.layout));
+});
+
+keyboardOctaveBtns.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    setComputerKeyboardOctave(btn.dataset.octave);
+  });
 });
 
 loadSampleButton.addEventListener("click", () => {
@@ -1781,20 +2108,6 @@ performanceStopButton.addEventListener("click", () => {
 
 adsrEnabledInput.addEventListener("input", () => updateAdsrStateFromInputs("slider"));
 adsrEnabledInput.addEventListener("change", () => updateAdsrStateFromInputs("slider"));
-adsrPanel.addEventListener("toggle", () => {
-  if (adsrPanel.open && !adsrEnabledInput.checked) {
-    adsrEnabledInput.checked = true;
-    updateAdsrStateFromInputs("slider");
-  }
-  if (adsrPanel.open) {
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        resizeAdsrGraphCanvas();
-        renderAdsrGraph();
-      });
-    });
-  }
-});
 
 [attackControl, decayControl, sustainControl, releaseControl].forEach((control) => {
   control.addEventListener("input", () => updateAdsrStateFromInputs("slider"));
@@ -1806,14 +2119,44 @@ adsrPanel.addEventListener("toggle", () => {
   control.addEventListener("change", () => updateAdsrStateFromInputs("manual"));
 });
 
-[eqLowControl, eqLowMidControl, eqHighMidControl, eqHighControl].forEach((control) => {
-  control.addEventListener("input", updateEqFromControls);
-  control.addEventListener("change", updateEqFromControls);
+[freqControl, resoControl].forEach((control) => {
+  control.addEventListener("input", updateFilterFromControls);
+  control.addEventListener("change", updateFilterFromControls);
 });
 
-[eqLowInput, eqLowMidInput, eqHighMidInput, eqHighInput].forEach((input) => {
-  input.addEventListener("input", updateEqFromManualInputs);
-  input.addEventListener("change", updateEqFromManualInputs);
+[freqInput, resoInput].forEach((input) => {
+  input.addEventListener("input", updateFilterFromManualInputs);
+  input.addEventListener("change", updateFilterFromManualInputs);
+});
+
+volumeControl.addEventListener("input", updateVolumeFromControl);
+volumeControl.addEventListener("change", updateVolumeFromControl);
+
+filterEnabledInput.addEventListener("input", () => {
+  filterState.enabled = filterEnabledInput.checked;
+  updateFilterUiState();
+  syncFilterControls();
+  renderFilterGraph();
+});
+filterEnabledInput.addEventListener("change", () => {
+  filterState.enabled = filterEnabledInput.checked;
+  updateFilterUiState();
+  syncFilterControls();
+  renderFilterGraph();
+});
+
+filterModeLp.addEventListener("click", () => {
+  filterState.type = "lowpass";
+  updateFilterUiState();
+  applyFilterState();
+  renderFilterGraph();
+});
+
+filterModeHp.addEventListener("click", () => {
+  filterState.type = "highpass";
+  updateFilterUiState();
+  applyFilterState();
+  renderFilterGraph();
 });
 
 loopEnabledInput.addEventListener("change", () => {
@@ -1833,6 +2176,29 @@ loopStartInput.addEventListener("input", () => applyPlaybackSecondsInput("loopSt
 loopStartInput.addEventListener("change", () => applyPlaybackSecondsInput("loopStart", loopStartInput.value));
 loopEndInput.addEventListener("input", () => applyPlaybackSecondsInput("loopEnd", loopEndInput.value));
 loopEndInput.addEventListener("change", () => applyPlaybackSecondsInput("loopEnd", loopEndInput.value));
+
+[sampleStartSlider, loopStartSlider, loopEndSlider].forEach((slider) => {
+  slider.addEventListener("input", () => {
+    const norm = Number.parseInt(slider.value, 10) / 1000;
+    if (slider === sampleStartSlider) {
+      applyMarkerNorm("sampleStart", norm);
+    } else if (slider === loopStartSlider) {
+      applyMarkerNorm("loopStart", norm);
+    } else {
+      applyMarkerNorm("loopEnd", norm);
+    }
+  });
+  slider.addEventListener("change", () => {
+    const norm = Number.parseInt(slider.value, 10) / 1000;
+    if (slider === sampleStartSlider) {
+      applyMarkerNorm("sampleStart", norm);
+    } else if (slider === loopStartSlider) {
+      applyMarkerNorm("loopStart", norm);
+    } else {
+      applyMarkerNorm("loopEnd", norm);
+    }
+  });
+});
 
 waveformCanvas.addEventListener("pointerdown", (event) => {
   if (!renderedBuffer) return;
@@ -1869,6 +2235,14 @@ waveformCanvas.addEventListener("pointerup", releaseWaveformPointer);
 waveformCanvas.addEventListener("pointercancel", releaseWaveformPointer);
 waveformCanvas.addEventListener("lostpointercapture", releaseWaveformPointer);
 
+window.addEventListener("pointerdown", () => {
+  ensureAudioRunning();
+}, { capture: true, passive: true });
+
+window.addEventListener("keydown", () => {
+  ensureAudioRunning();
+}, { capture: true });
+
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && isRecordModalOpen()) {
     closeRecordModal();
@@ -1884,7 +2258,7 @@ window.addEventListener("keydown", (event) => {
   const pressedKey = normalizedEventKey(event.key);
   if (!pressedKey) return;
 
-  const midi = layoutKeyToMidi[currentLayout].get(pressedKey);
+  const midi = layoutKeyToMidi.get(pressedKey);
   if (midi == null) return;
 
   event.preventDefault();
@@ -1920,8 +2294,13 @@ if (navigator.mediaDevices?.addEventListener) {
 
 createKeyboard();
 setKeyboardLayout(currentLayout);
+setComputerKeyboardOctave(currentComputerKeyboardOctave);
 resizeAdsrGraphCanvas();
-syncEqControls();
+resizeFilterGraphCanvas();
+syncFilterControls();
+syncVolumeUi();
+updateFilterUiState();
+renderFilterGraph();
 resizeWaveformCanvas();
 refreshPerformanceDownloads();
 setPerformanceWidgetCollapsed(true);
@@ -1933,7 +2312,9 @@ refreshAudioInputDevices().catch((error) => {
 });
 window.addEventListener("resize", () => {
   resizeAdsrGraphCanvas();
+  resizeFilterGraphCanvas();
   resizeWaveformCanvas();
   updateKeyboardGeometry();
   renderAdsrGraph();
+  renderFilterGraph();
 });

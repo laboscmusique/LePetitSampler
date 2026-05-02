@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mini Sampler</title>
+    <title>LePetitSampler</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Sora:wght@500;700;800&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./style.css" />
@@ -15,25 +15,24 @@
   <body>
     <main class="sampler-shell">
       <section class="locale-box" aria-label="Language and keyboard settings">
-        <label for="languageSelect">
+        <div class="locale-control">
           <span data-i18n="lang.label">Langue</span>
-          <select id="languageSelect">
-            <option value="fr">Français</option>
-            <option value="en">English</option>
-          </select>
-        </label>
-        <label for="keyboardLayoutSelect">
+          <div class="locale-btn-group">
+            <button type="button" class="locale-btn active" data-lang="fr">Français</button>
+            <button type="button" class="locale-btn" data-lang="en">English</button>
+          </div>
+        </div>
+        <div class="locale-control">
           <span data-i18n="layout.label">Clavier</span>
-          <select id="keyboardLayoutSelect">
-            <option value="azerty">AZERTY</option>
-            <option value="qwerty">QWERTY</option>
-          </select>
-        </label>
+          <div class="locale-btn-group">
+            <button type="button" class="locale-btn" data-layout="azerty">AZERTY</button>
+            <button type="button" class="locale-btn" data-layout="qwerty">QWERTY</button>
+          </div>
+        </div>
       </section>
 
-      <section class="panel controls">
+      <section class="panel sample-panel module module-sun">
         <h1 data-i18n="app.title">Mini Sampler</h1>
-        <p class="subtitle" data-i18n="app.subtitle">Charge un sample accordé en C3 et joue-le sur plusieurs notes.</p>
 
         <div class="sample-actions">
           <button id="loadSampleButton" type="button" class="sample-action sample-load" data-i18n="actions.loadSample">Charger un sample</button>
@@ -43,87 +42,80 @@
 
         <div class="status-row">
           <p id="sampleName" class="status">Aucun sample chargé</p>
-          <p class="hint" data-i18n="app.base">Base: C3</p>
         </div>
 
-        <details class="adsr-panel" aria-label="Enveloppe ADSR">
-          <summary data-i18n="adsr.summary">Enveloppe ADSR</summary>
+        <div class="volume-row">
+          <label for="volumeControl" data-i18n="volume.label">Volume</label>
+          <input id="volumeControl" type="range" min="0" max="300" step="1" value="100" />
+          <span id="volumeValue">100%</span>
+        </div>
+      </section>
+
+      <section class="panel adsr-module module module-red">
+        <div class="adsr-panel" aria-label="Enveloppe ADSR">
+          <h2 class="panel-title" data-i18n="adsr.summary">Enveloppe ADSR</h2>
 
           <div class="adsr-topbar">
             <label class="adsr-toggle" for="adsrEnabled">
-              <input id="adsrEnabled" type="checkbox" checked />
-              <span data-i18n="adsr.enabled">ADSR activée</span>
+              <input id="adsrEnabled" type="checkbox" />
+              <span id="adsrToggleLabel">ADSR désactivée</span>
             </label>
             <p id="adsrModeBadge" class="adsr-mode-badge">Mode: ADSR</p>
           </div>
 
-          <p id="adsrHelper" class="adsr-helper">
-            Attaque rapide, decay court, sustain élevé et release moyenne.
-          </p>
-
           <div class="adsr-visual">
             <canvas id="adsrGraph" width="700" height="220" aria-label="Courbe ADSR"></canvas>
-            <div class="adsr-stage-labels" aria-hidden="true">
-              <span>A · Attack</span>
-              <span>D · Decay</span>
-              <span>S · Sustain (hold)</span>
-              <span>R · Release</span>
-            </div>
           </div>
 
           <div class="adsr-controls">
             <div class="adsr-card">
               <div class="adsr-card-head">
                 <label for="attackControl">Attack</label>
+                <div class="adsr-value-row">
+                  <input id="attackInput" type="number" min="0" max="2" step="0.01" value="0.02" />
+                  <span>s</span>
+                </div>
               </div>
               <input id="attackControl" type="range" min="0" max="2" step="0.01" value="0.02" />
-              <div class="adsr-manual-row">
-                <label for="attackInput" data-i18n="common.value">Valeur</label>
-                <input id="attackInput" type="number" min="0" max="2" step="0.01" value="0.02" />
-                <span>s</span>
-              </div>
             </div>
 
             <div class="adsr-card">
               <div class="adsr-card-head">
                 <label for="decayControl">Decay</label>
+                <div class="adsr-value-row">
+                  <input id="decayInput" type="number" min="0" max="2" step="0.01" value="0.18" />
+                  <span>s</span>
+                </div>
               </div>
               <input id="decayControl" type="range" min="0" max="2" step="0.01" value="0.18" />
-              <div class="adsr-manual-row">
-                <label for="decayInput" data-i18n="common.value">Valeur</label>
-                <input id="decayInput" type="number" min="0" max="2" step="0.01" value="0.18" />
-                <span>s</span>
-              </div>
             </div>
 
             <div class="adsr-card">
               <div class="adsr-card-head">
                 <label for="sustainControl">Sustain</label>
+                <div class="adsr-value-row">
+                  <input id="sustainInput" type="number" min="0" max="100" step="1" value="75" />
+                  <span>%</span>
+                </div>
               </div>
               <input id="sustainControl" type="range" min="0" max="1" step="0.01" value="0.75" />
-              <div class="adsr-manual-row">
-                <label for="sustainInput" data-i18n="common.value">Valeur</label>
-                <input id="sustainInput" type="number" min="0" max="100" step="1" value="75" />
-                <span>%</span>
-              </div>
             </div>
 
             <div class="adsr-card">
               <div class="adsr-card-head">
                 <label for="releaseControl">Release</label>
+                <div class="adsr-value-row">
+                  <input id="releaseInput" type="number" min="0" max="3" step="0.01" value="0.24" />
+                  <span>s</span>
+                </div>
               </div>
               <input id="releaseControl" type="range" min="0" max="3" step="0.01" value="0.24" />
-              <div class="adsr-manual-row">
-                <label for="releaseInput" data-i18n="common.value">Valeur</label>
-                <input id="releaseInput" type="number" min="0" max="3" step="0.01" value="0.24" />
-                <span>s</span>
-              </div>
             </div>
           </div>
-        </details>
+        </div>
       </section>
 
-      <section class="panel waveform-panel">
+      <section class="panel waveform-panel module module-ice">
         <h2 data-i18n="waveform.title">Waveform</h2>
         <canvas id="waveform" width="960" height="220" aria-label="Waveform du sample"></canvas>
         <div class="wave-editor">
@@ -135,65 +127,102 @@
             <button id="resetPlaybackPoints" type="button" class="reset-points" data-i18n="waveform.resetPoints">Reset points</button>
           </div>
           <p class="wave-editor-help" data-i18n-html="waveform.help">
-            Drag sur la waveform: <strong>Start</strong> (orange), <strong>Loop In</strong> et <strong>Loop Out</strong> (bleu).
+            Drag sur la waveform: <strong>Sample Start</strong> (vert), <strong>Loop In</strong> et <strong>Loop Out</strong> (bleu).
           </p>
-          <div class="playback-readout" aria-live="polite">
-            <label for="sampleStartInput">
-              <span data-i18n="waveform.start">Start</span>
-              <input id="sampleStartInput" type="number" min="0" step="0.01" value="0.00" />
-            </label>
-            <label for="loopStartInput">
-              <span data-i18n="waveform.loopIn">Loop In</span>
-              <input id="loopStartInput" type="number" min="0" step="0.01" value="0.00" />
-            </label>
-            <label for="loopEndInput">
-              <span data-i18n="waveform.loopOut">Loop Out</span>
-              <input id="loopEndInput" type="number" min="0" step="0.01" value="0.00" />
-            </label>
+          <div class="waveform-cards" aria-live="polite">
+            <div class="waveform-card">
+              <div class="waveform-card-head">
+                <label for="sampleStartSlider" data-i18n="waveform.start">Sample Start</label>
+                <div class="waveform-value-row">
+                  <input id="sampleStartInput" type="number" min="0" step="0.01" value="0.00" />
+                  <span>s</span>
+                </div>
+              </div>
+              <input id="sampleStartSlider" type="range" min="0" max="1000" step="1" value="0" class="waveform-slider" />
+            </div>
+
+            <div class="waveform-card">
+              <div class="waveform-card-head">
+                <label for="loopStartSlider" data-i18n="waveform.loopIn">Loop In</label>
+                <div class="waveform-value-row">
+                  <input id="loopStartInput" type="number" min="0" step="0.01" value="0.00" />
+                  <span>s</span>
+                </div>
+              </div>
+              <input id="loopStartSlider" type="range" min="0" max="1000" step="1" value="0" class="waveform-slider" />
+            </div>
+
+            <div class="waveform-card">
+              <div class="waveform-card-head">
+                <label for="loopEndSlider" data-i18n="waveform.loopOut">Loop Out</label>
+                <div class="waveform-value-row">
+                  <input id="loopEndInput" type="number" min="0" step="0.01" value="0.00" />
+                  <span>s</span>
+                </div>
+              </div>
+              <input id="loopEndSlider" type="range" min="0" max="1000" step="1" value="1000" class="waveform-slider" />
+            </div>
           </div>
         </div>
-
-        <details class="eq-panel">
-          <summary data-i18n="eq.summary">EQ</summary>
-          <div class="eq-controls">
-            <label for="eqLowControl">
-              <span data-i18n="eq.low">Low</span>
-              <input id="eqLowControl" type="range" min="-18" max="18" step="0.5" value="0" />
-              <div class="eq-manual-row">
-                <input id="eqLowInput" type="number" min="-18" max="18" step="0.1" value="0.0" aria-label="Low dB" />
-                <span>dB</span>
-              </div>
-            </label>
-            <label for="eqLowMidControl">
-              <span data-i18n="eq.lowMid">Low Mid</span>
-              <input id="eqLowMidControl" type="range" min="-18" max="18" step="0.5" value="0" />
-              <div class="eq-manual-row">
-                <input id="eqLowMidInput" type="number" min="-18" max="18" step="0.1" value="0.0" aria-label="Low Mid dB" />
-                <span>dB</span>
-              </div>
-            </label>
-            <label for="eqHighMidControl">
-              <span data-i18n="eq.highMid">High Mid</span>
-              <input id="eqHighMidControl" type="range" min="-18" max="18" step="0.5" value="0" />
-              <div class="eq-manual-row">
-                <input id="eqHighMidInput" type="number" min="-18" max="18" step="0.1" value="0.0" aria-label="High Mid dB" />
-                <span>dB</span>
-              </div>
-            </label>
-            <label for="eqHighControl">
-              <span data-i18n="eq.high">High</span>
-              <input id="eqHighControl" type="range" min="-18" max="18" step="0.5" value="0" />
-              <div class="eq-manual-row">
-                <input id="eqHighInput" type="number" min="-18" max="18" step="0.1" value="0.0" aria-label="High dB" />
-                <span>dB</span>
-              </div>
-            </label>
-          </div>
-        </details>
       </section>
 
-      <section class="panel keyboard-panel">
-        <h2 data-i18n="keyboard.title">Keyboard</h2>
+      <section class="panel filter-module module module-ice">
+        <div class="filter-panel">
+          <h2 class="panel-title" data-i18n="filter.summary">Filtre</h2>
+
+          <div class="filter-topbar">
+            <label class="filter-toggle" for="filterEnabled">
+              <input id="filterEnabled" type="checkbox" />
+              <span id="filterToggleLabel">Filtre désactivé</span>
+            </label>
+            <div class="filter-mode-group">
+              <button id="filterModeLp" type="button" class="filter-mode-btn active" data-i18n="filter.mode.lp">LP</button>
+              <button id="filterModeHp" type="button" class="filter-mode-btn" data-i18n="filter.mode.hp">HP</button>
+            </div>
+          </div>
+
+          <div class="filter-visual">
+            <canvas id="filterGraph" width="700" height="220" aria-label="Courbe du filtre"></canvas>
+          </div>
+
+          <div class="filter-controls">
+            <div class="filter-card">
+              <div class="filter-card-head">
+                <label for="freqControl" data-i18n="filter.freq">Freq</label>
+                <div class="filter-value-row">
+                  <input id="freqInput" type="number" min="20" max="20000" step="1" value="1000" />
+                  <span>Hz</span>
+                </div>
+              </div>
+              <input id="freqControl" type="range" min="0" max="1000" step="1" value="566" class="filter-slider" />
+            </div>
+
+            <div class="filter-card">
+              <div class="filter-card-head">
+                <label for="resoControl" data-i18n="filter.reso">Resonance</label>
+                <div class="filter-value-row">
+                  <input id="resoInput" type="number" min="0.1" max="30" step="0.1" value="1.0" />
+                  <span>Q</span>
+                </div>
+              </div>
+              <input id="resoControl" type="range" min="0.1" max="30" step="0.01" value="1.0" class="filter-slider" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel keyboard-panel module module-lime">
+        <div class="keyboard-head">
+          <h2 data-i18n="keyboard.title">Keyboard</h2>
+          <div class="keyboard-octave-control">
+            <span data-i18n="keyboard.octaveLabel">Octave clavier ordinateur</span>
+            <div class="keyboard-octave-group">
+              <button type="button" class="keyboard-octave-btn" data-octave="1">1</button>
+              <button type="button" class="keyboard-octave-btn active" data-octave="2">2</button>
+              <button type="button" class="keyboard-octave-btn" data-octave="3">3</button>
+            </div>
+          </div>
+        </div>
         <div id="pianoKeyboard" class="piano" aria-label="Clavier piano interactif"></div>
       </section>
     </main>
@@ -215,8 +244,6 @@
           <button id="refreshRecordInputsButton" type="button" class="record-refresh" data-i18n="recordModal.refresh">Actualiser</button>
         </div>
 
-        <div id="recordLiveBadge" class="record-state">Prêt</div>
-
         <div class="record-actions">
           <button id="recordStartButton" type="button" class="record-start" data-i18n="recordModal.start">Démarrer</button>
           <button id="recordStopButton" type="button" class="record-stop" disabled data-i18n="common.stop">Stop</button>
@@ -235,8 +262,6 @@
         <p class="record-permission-hint" data-i18n="performance.help">
           Capture directe de la sortie du sampler (clavier physique + clavier visuel).
         </p>
-
-        <div id="performanceLiveBadge" class="record-state">Prêt</div>
 
         <div class="record-actions">
           <button id="performanceStartButton" type="button" class="record-start" data-i18n="performance.start">Démarrer</button>
