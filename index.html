@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mini Sampler</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="sampler-shell">
+      <section class="locale-box" aria-label="Language and keyboard settings">
+        <label for="languageSelect">
+          <span data-i18n="lang.label">Langue</span>
+          <select id="languageSelect">
+            <option value="fr">Français</option>
+            <option value="en">English</option>
+          </select>
+        </label>
+        <label for="keyboardLayoutSelect">
+          <span data-i18n="layout.label">Clavier</span>
+          <select id="keyboardLayoutSelect">
+            <option value="azerty">AZERTY</option>
+            <option value="qwerty">QWERTY</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="panel controls">
+        <h1 data-i18n="app.title">Mini Sampler</h1>
+        <p class="subtitle" data-i18n="app.subtitle">Charge un sample accordé en C3 et joue-le sur plusieurs notes.</p>
+
+        <div class="sample-actions">
+          <button id="loadSampleButton" type="button" class="sample-action sample-load" data-i18n="actions.loadSample">Charger un sample</button>
+          <button id="openRecordModalButton" type="button" class="sample-action sample-record" data-i18n="actions.recordSample">Enregistrer un sample</button>
+        </div>
+        <input id="sampleFile" type="file" accept="audio/*" />
+
+        <div class="status-row">
+          <p id="sampleName" class="status">Aucun sample chargé</p>
+          <p class="hint" data-i18n="app.base">Base: C3</p>
+        </div>
+
+        <details class="adsr-panel" aria-label="Enveloppe ADSR">
+          <summary data-i18n="adsr.summary">Enveloppe ADSR</summary>
+
+          <div class="adsr-topbar">
+            <label class="adsr-toggle" for="adsrEnabled">
+              <input id="adsrEnabled" type="checkbox" checked />
+              <span data-i18n="adsr.enabled">ADSR activée</span>
+            </label>
+            <p id="adsrModeBadge" class="adsr-mode-badge">Mode: ADSR</p>
+          </div>
+
+          <p id="adsrHelper" class="adsr-helper">
+            Attaque rapide, decay court, sustain élevé et release moyenne.
+          </p>
+
+          <div class="adsr-visual">
+            <canvas id="adsrGraph" width="700" height="220" aria-label="Courbe ADSR"></canvas>
+            <div class="adsr-stage-labels" aria-hidden="true">
+              <span>A · Attack</span>
+              <span>D · Decay</span>
+              <span>S · Sustain (hold)</span>
+              <span>R · Release</span>
+            </div>
+          </div>
+
+          <div class="adsr-controls">
+            <div class="adsr-card">
+              <div class="adsr-card-head">
+                <label for="attackControl">Attack</label>
+              </div>
+              <input id="attackControl" type="range" min="0" max="2" step="0.01" value="0.02" />
+              <div class="adsr-manual-row">
+                <label for="attackInput" data-i18n="common.value">Valeur</label>
+                <input id="attackInput" type="number" min="0" max="2" step="0.01" value="0.02" />
+                <span>s</span>
+              </div>
+            </div>
+
+            <div class="adsr-card">
+              <div class="adsr-card-head">
+                <label for="decayControl">Decay</label>
+              </div>
+              <input id="decayControl" type="range" min="0" max="2" step="0.01" value="0.18" />
+              <div class="adsr-manual-row">
+                <label for="decayInput" data-i18n="common.value">Valeur</label>
+                <input id="decayInput" type="number" min="0" max="2" step="0.01" value="0.18" />
+                <span>s</span>
+              </div>
+            </div>
+
+            <div class="adsr-card">
+              <div class="adsr-card-head">
+                <label for="sustainControl">Sustain</label>
+              </div>
+              <input id="sustainControl" type="range" min="0" max="1" step="0.01" value="0.75" />
+              <div class="adsr-manual-row">
+                <label for="sustainInput" data-i18n="common.value">Valeur</label>
+                <input id="sustainInput" type="number" min="0" max="100" step="1" value="75" />
+                <span>%</span>
+              </div>
+            </div>
+
+            <div class="adsr-card">
+              <div class="adsr-card-head">
+                <label for="releaseControl">Release</label>
+              </div>
+              <input id="releaseControl" type="range" min="0" max="3" step="0.01" value="0.24" />
+              <div class="adsr-manual-row">
+                <label for="releaseInput" data-i18n="common.value">Valeur</label>
+                <input id="releaseInput" type="number" min="0" max="3" step="0.01" value="0.24" />
+                <span>s</span>
+              </div>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <section class="panel waveform-panel">
+        <h2 data-i18n="waveform.title">Waveform</h2>
+        <canvas id="waveform" width="960" height="220" aria-label="Waveform du sample"></canvas>
+        <div class="wave-editor">
+          <div class="wave-editor-top">
+            <label class="loop-toggle" for="loopEnabled">
+              <input id="loopEnabled" type="checkbox" />
+              <span data-i18n="waveform.loopEnabled">Loop activée</span>
+            </label>
+            <button id="resetPlaybackPoints" type="button" class="reset-points" data-i18n="waveform.resetPoints">Reset points</button>
+          </div>
+          <p class="wave-editor-help" data-i18n-html="waveform.help">
+            Drag sur la waveform: <strong>Start</strong> (orange), <strong>Loop In</strong> et <strong>Loop Out</strong> (bleu).
+          </p>
+          <div class="playback-readout" aria-live="polite">
+            <label for="sampleStartInput">
+              <span data-i18n="waveform.start">Start</span>
+              <input id="sampleStartInput" type="number" min="0" step="0.01" value="0.00" />
+            </label>
+            <label for="loopStartInput">
+              <span data-i18n="waveform.loopIn">Loop In</span>
+              <input id="loopStartInput" type="number" min="0" step="0.01" value="0.00" />
+            </label>
+            <label for="loopEndInput">
+              <span data-i18n="waveform.loopOut">Loop Out</span>
+              <input id="loopEndInput" type="number" min="0" step="0.01" value="0.00" />
+            </label>
+          </div>
+        </div>
+
+        <details class="eq-panel">
+          <summary data-i18n="eq.summary">EQ</summary>
+          <div class="eq-controls">
+            <label for="eqLowControl">
+              <span data-i18n="eq.low">Low</span>
+              <input id="eqLowControl" type="range" min="-18" max="18" step="0.5" value="0" />
+              <div class="eq-manual-row">
+                <input id="eqLowInput" type="number" min="-18" max="18" step="0.1" value="0.0" aria-label="Low dB" />
+                <span>dB</span>
+              </div>
+            </label>
+            <label for="eqLowMidControl">
+              <span data-i18n="eq.lowMid">Low Mid</span>
+              <input id="eqLowMidControl" type="range" min="-18" max="18" step="0.5" value="0" />
+              <div class="eq-manual-row">
+                <input id="eqLowMidInput" type="number" min="-18" max="18" step="0.1" value="0.0" aria-label="Low Mid dB" />
+                <span>dB</span>
+              </div>
+            </label>
+            <label for="eqHighMidControl">
+              <span data-i18n="eq.highMid">High Mid</span>
+              <input id="eqHighMidControl" type="range" min="-18" max="18" step="0.5" value="0" />
+              <div class="eq-manual-row">
+                <input id="eqHighMidInput" type="number" min="-18" max="18" step="0.1" value="0.0" aria-label="High Mid dB" />
+                <span>dB</span>
+              </div>
+            </label>
+            <label for="eqHighControl">
+              <span data-i18n="eq.high">High</span>
+              <input id="eqHighControl" type="range" min="-18" max="18" step="0.5" value="0" />
+              <div class="eq-manual-row">
+                <input id="eqHighInput" type="number" min="-18" max="18" step="0.1" value="0.0" aria-label="High dB" />
+                <span>dB</span>
+              </div>
+            </label>
+          </div>
+        </details>
+      </section>
+
+      <section class="panel keyboard-panel">
+        <h2 data-i18n="keyboard.title">Keyboard</h2>
+        <div id="pianoKeyboard" class="piano" aria-label="Clavier piano interactif"></div>
+      </section>
+    </main>
+
+    <div id="recordModal" class="record-modal hidden" role="dialog" aria-modal="true" aria-labelledby="recordModalTitle">
+      <div class="record-modal-card">
+        <div class="record-modal-head">
+          <h2 id="recordModalTitle" data-i18n="recordModal.title">Enregistrer un sample</h2>
+          <button id="closeRecordModalButton" type="button" class="record-close" data-i18n="recordModal.close">Fermer</button>
+        </div>
+
+        <p id="recordPermissionHint" class="record-permission-hint">
+          Vérification de l'autorisation micro...
+        </p>
+
+        <label class="record-device" for="recordInputSelect" data-i18n="recordModal.audioInput">Entrée audio</label>
+        <div class="record-device-row">
+          <select id="recordInputSelect"></select>
+          <button id="refreshRecordInputsButton" type="button" class="record-refresh" data-i18n="recordModal.refresh">Actualiser</button>
+        </div>
+
+        <div id="recordLiveBadge" class="record-state">Prêt</div>
+
+        <div class="record-actions">
+          <button id="recordStartButton" type="button" class="record-start" data-i18n="recordModal.start">Démarrer</button>
+          <button id="recordStopButton" type="button" class="record-stop" disabled data-i18n="common.stop">Stop</button>
+          <span id="recordTimer" class="record-timer">00:00</span>
+        </div>
+        <p id="recordStatus" class="record-status">Prêt à enregistrer</p>
+      </div>
+    </div>
+
+    <div id="performanceWidget" class="performance-widget">
+      <div class="performance-widget-head">
+        <p data-i18n="performance.title">Enregistrer ma performance</p>
+        <button id="togglePerformanceWidgetButton" type="button">–</button>
+      </div>
+      <div id="performanceWidgetBody" class="performance-widget-body">
+        <p class="record-permission-hint" data-i18n="performance.help">
+          Capture directe de la sortie du sampler (clavier physique + clavier visuel).
+        </p>
+
+        <div id="performanceLiveBadge" class="record-state">Prêt</div>
+
+        <div class="record-actions">
+          <button id="performanceStartButton" type="button" class="record-start" data-i18n="performance.start">Démarrer</button>
+          <button id="performanceStopButton" type="button" class="record-stop" disabled data-i18n="common.stop">Stop</button>
+          <span id="performanceTimer" class="record-timer">00:00</span>
+        </div>
+        <p id="performanceStatus" class="record-status">Prêt à capturer la performance.</p>
+
+        <div class="performance-exports">
+          <a id="downloadPerformanceWav" class="performance-download disabled" href="#" download data-i18n="performance.downloadWav">Télécharger WAV</a>
+          <a id="downloadPerformanceMp3" class="performance-download disabled" href="#" download data-i18n="performance.downloadMp3">Télécharger MP3</a>
+        </div>
+        <p id="performanceMp3Hint" class="record-status">MP3 disponible uniquement si supporté par le navigateur.</p>
+      </div>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
