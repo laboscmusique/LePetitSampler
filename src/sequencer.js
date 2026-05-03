@@ -149,10 +149,11 @@ function scheduleStep() {
 
     const step = sequencerState.currentStep;
     const time = sequencerState.nextStepTime;
+    const secondsPerStep = 60.0 / sequencerState.bpm / 4;
 
     for (let row = 0; row < SEQUENCER_ROWS; row++) {
       if (sequencerState.grid[row][step]) {
-        apiRef.triggerDrumPadShot(row, time);
+        apiRef.triggerDrumPadShot(row, time, secondsPerStep);
       }
     }
 
@@ -160,7 +161,6 @@ function scheduleStep() {
     const capturedStep = step;
     setTimeout(() => updateStepHighlight(capturedStep), delay);
 
-    const secondsPerStep = 60.0 / sequencerState.bpm / 4;
     sequencerState.nextStepTime += secondsPerStep;
   }
 

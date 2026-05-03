@@ -487,7 +487,7 @@ export function stopAllDrumPads() {
   }
 }
 
-export function triggerDrumPadShot(padIndex, when) {
+export function triggerDrumPadShot(padIndex, when, stepDuration) {
   const pad = drumState.pads[padIndex];
   if (!pad || !pad.buffer || !audioContext) return;
 
@@ -521,6 +521,12 @@ export function triggerDrumPadShot(padIndex, when) {
 
     if (padAdsr.decay > 0) {
       gain.gain.exponentialRampToValueAtTime(sustainTarget, decayEnd);
+    }
+
+    if (stepDuration && padAdsr.release > 0) {
+      const releaseStart = startTime + stepDuration;
+      gain.gain.setValueAtTime(Math.max(sustainTarget, 0.0001), releaseStart);
+      gain.gain.exponentialRampToValueAtTime(0.0001, releaseStart + padAdsr.release);
     }
   } else {
     gain.gain.setValueAtTime(padVolume, startTime);

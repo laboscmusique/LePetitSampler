@@ -1411,7 +1411,7 @@
       drumState.sequencerVoices.clear();
     }
   }
-  function triggerDrumPadShot(padIndex, when) {
+  function triggerDrumPadShot(padIndex, when, stepDuration) {
     const pad = drumState.pads[padIndex];
     if (!pad || !pad.buffer || !audioContext) return;
     const prev = drumState.sequencerVoices?.get(padIndex);
@@ -1442,6 +1442,11 @@
       }
       if (padAdsr.decay > 0) {
         gain.gain.exponentialRampToValueAtTime(sustainTarget, decayEnd);
+      }
+      if (stepDuration && padAdsr.release > 0) {
+        const releaseStart = startTime + stepDuration;
+        gain.gain.setValueAtTime(Math.max(sustainTarget, 1e-4), releaseStart);
+        gain.gain.exponentialRampToValueAtTime(1e-4, releaseStart + padAdsr.release);
       }
     } else {
       gain.gain.setValueAtTime(padVolume, startTime);
@@ -3058,15 +3063,15 @@
       sequencerState.currentStep = (sequencerState.currentStep + 1) % SEQUENCER_STEPS;
       const step = sequencerState.currentStep;
       const time = sequencerState.nextStepTime;
+      const secondsPerStep = 60 / sequencerState.bpm / 4;
       for (let row = 0; row < SEQUENCER_ROWS; row++) {
         if (sequencerState.grid[row][step]) {
-          apiRef.triggerDrumPadShot(row, time);
+          apiRef.triggerDrumPadShot(row, time, secondsPerStep);
         }
       }
       const delay = Math.max(0, (time - ctx.currentTime) * 1e3);
       const capturedStep = step;
       setTimeout(() => updateStepHighlight(capturedStep), delay);
-      const secondsPerStep = 60 / sequencerState.bpm / 4;
       sequencerState.nextStepTime += secondsPerStep;
     }
     sequencerState.schedulerTimerId = setTimeout(scheduleStep, SCHEDULE_INTERVAL);
