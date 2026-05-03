@@ -23,7 +23,6 @@ const fileInput = document.getElementById("sampleFile");
 const loadSampleButton = document.getElementById("loadSampleButton");
 const openRecordModalButton = document.getElementById("openRecordModalButton");
 const langBtns = document.querySelectorAll(".locale-btn[data-lang]");
-const layoutBtns = document.querySelectorAll(".locale-btn[data-layout]");
 const keyboardOctaveBtns = document.querySelectorAll(".keyboard-octave-btn");
 const sampleName = document.getElementById("sampleName");
 const volumeControl = document.getElementById("volumeControl");
@@ -158,11 +157,13 @@ const filterState = {
 
 let activeWaveformMarker = null;
 let waveformPointerId = null;
+let priorityMidi = null;
+let waveformSnapshot = null;
+let playheadAnimId = null;
 
 const translations = {
   fr: {
-    "lang.label": "Langue",
-    "layout.label": "Clavier",
+    "lang.label": "Langue et clavier",
     "common.value": "Valeur",
     "common.stop": "Stop",
     "app.title": "LePetitSampler",
@@ -250,8 +251,7 @@ const translations = {
     "modal.closeOnEscape": "Fermer"
   },
   en: {
-    "lang.label": "Language",
-    "layout.label": "Keyboard",
+    "lang.label": "Language & keyboard",
     "common.value": "Value",
     "common.stop": "Stop",
     "app.title": "LePetitSampler",
@@ -663,6 +663,7 @@ function drawEmptyWaveform() {
   canvasCtx.textAlign = "center";
   canvasCtx.textBaseline = "middle";
   canvasCtx.fillText(t("waveform.empty"), width / 2, height / 2);
+  waveformSnapshot = null;
 }
 
 function resizeAdsrGraphCanvas() {
@@ -746,6 +747,7 @@ function drawWaveform(audioBuffer) {
   canvasCtx.stroke();
 
   drawWaveformMarkers(width, height);
+  waveformSnapshot = canvasCtx.getImageData(0, 0, waveformCanvas.width, waveformCanvas.height);
   updatePlaybackUi();
 }
 
@@ -772,9 +774,9 @@ function drawWaveformMarkers(width, height) {
 
     canvasCtx.fillStyle = marker.color;
     canvasCtx.beginPath();
-    canvasCtx.moveTo(marker.x - markerSize, 4);
-    canvasCtx.lineTo(marker.x + markerSize, 4);
-    canvasCtx.lineTo(marker.x, 14);
+    canvasCtx.moveTo(marker.x - markerSize, 0);
+    canvasCtx.lineTo(marker.x + markerSize, 0);
+    canvasCtx.lineTo(marker.x, markerSize + 4);
     canvasCtx.closePath();
     canvasCtx.fill();
 
@@ -784,7 +786,7 @@ function drawWaveformMarkers(width, height) {
     canvasCtx.textAlign = labelAlignLeft ? "left" : "right";
     canvasCtx.textBaseline = "top";
     const labelX = labelAlignLeft ? marker.x + markerSize + 3 : marker.x - markerSize - 3;
-    canvasCtx.fillText(marker.label, labelX, 4);
+    canvasCtx.fillText(marker.label, labelX, markerSize + 6);
   }
 }
 
@@ -951,6 +953,7 @@ function resetPlaybackState() {
   playbackState.loopEndNorm = 1;
   activeWaveformMarker = null;
   waveformPointerId = null;
+  priorityMidi = null;
 }
 
 function revokePerformanceDownloadUrls() {
@@ -1771,6 +1774,73 @@ function renderFilterGraph() {
   }
 }
 
+function updatePriorityMidi(releasedMidi) {
+  if (releasedMidi !== priorityMidi) return;
+  priorityMidi = null;
+  for (const m of activeVoices.keys()) {
+    if (priorityMidi === null || m < priorityMidi) {
+      priorityMidi = m;
+    }
+  }
+}
+
+function getPlayheadNorm() {
+  if (priorityMidi === null || !loadedBuffer || !audioContext) return null;
+  const voice = activeVoices.get(priorityMidi);
+  if (!voice) return null;
+
+  const elapsed = (audioContext.currentTime - voice.startTime) * voice.playbackRate;
+  let posInBuffer = voice.startOffset + elapsed;
+
+  if (playbackState.loopEnabled) {
+    const loopStart = playbackState.loopStartNorm * loadedBuffer.duration;
+    const loopEnd = playbackState.loopEndNorm * loadedBuffer.duration;
+    const loopLength = loopEnd - loopStart;
+    if (loopLength > 0 && posInBuffer >= loopEnd) {
+      posInBuffer = loopStart + ((posInBuffer - loopStart) % loopLength);
+    }
+  }
+
+  return clamp(posInBuffer / loadedBuffer.duration, 0, 1);
+}
+
+function startPlayheadAnimation() {
+  if (playheadAnimId !== null) return;
+
+  function frame() {
+    if (activeVoices.size === 0 || !waveformSnapshot) {
+      playheadAnimId = null;
+      if (waveformSnapshot) {
+        canvasCtx.putImageData(waveformSnapshot, 0, 0);
+      }
+      return;
+    }
+
+    const norm = getPlayheadNorm();
+    if (norm === null) {
+      playheadAnimId = null;
+      return;
+    }
+
+    canvasCtx.putImageData(waveformSnapshot, 0, 0);
+
+    const width = Math.floor(waveformCanvas.clientWidth);
+    const height = Math.floor(waveformCanvas.clientHeight);
+    const x = norm * width;
+
+    canvasCtx.strokeStyle = "#ff7d3d";
+    canvasCtx.lineWidth = 2;
+    canvasCtx.beginPath();
+    canvasCtx.moveTo(x, 0);
+    canvasCtx.lineTo(x, height);
+    canvasCtx.stroke();
+
+    playheadAnimId = requestAnimationFrame(frame);
+  }
+
+  playheadAnimId = requestAnimationFrame(frame);
+}
+
 function startNote(midi) {
   if (!loadedBuffer) {
     setSampleStatus("sample.loadBeforePlay");
@@ -1836,13 +1906,19 @@ function startNote(midi) {
     if (voice && voice.source === source) {
       activeVoices.delete(midi);
       setKeyActive(midi, false);
+      updatePriorityMidi(midi);
     }
   };
 
   const startOffset = clamp(playbackState.sampleStartNorm * loadedBuffer.duration, 0, Math.max(0, loadedBuffer.duration - 0.001));
   source.start(now, startOffset);
-  activeVoices.set(midi, { source, gain });
+  activeVoices.set(midi, { source, gain, startTime: now, startOffset, playbackRate: source.playbackRate.value });
   setKeyActive(midi, true);
+
+  if (priorityMidi === null) {
+    priorityMidi = midi;
+  }
+  startPlayheadAnimation();
 }
 
 function stopNote(midi) {
@@ -1876,6 +1952,7 @@ function stopNote(midi) {
   }
 
   activeVoices.delete(midi);
+  updatePriorityMidi(midi);
   window.setTimeout(() => {
     if (!activeVoices.has(midi)) {
       setKeyActive(midi, false);
@@ -2016,7 +2093,6 @@ function normalizedEventKey(key) {
 function setKeyboardLayout(layoutName) {
   if (!(layoutName in keyboardLayouts)) return;
   currentLayout = layoutName;
-  layoutBtns.forEach((btn) => btn.classList.toggle("active", btn.dataset.layout === layoutName));
   clearPressedStates();
   rebuildLayoutKeyToMidi();
   refreshKeyboardLabels();
@@ -2057,10 +2133,6 @@ fileInput.addEventListener("change", async (event) => {
 
 langBtns.forEach((btn) => {
   btn.addEventListener("click", () => applyLanguage(btn.dataset.lang, true));
-});
-
-layoutBtns.forEach((btn) => {
-  btn.addEventListener("click", () => setKeyboardLayout(btn.dataset.layout));
 });
 
 keyboardOctaveBtns.forEach((btn) => {
@@ -2221,7 +2293,10 @@ loopEndInput.addEventListener("change", () => applyPlaybackSecondsInput("loopEnd
 });
 
 waveformCanvas.addEventListener("pointerdown", (event) => {
-  if (!renderedBuffer) return;
+  if (!renderedBuffer) {
+    fileInput.click();
+    return;
+  }
 
   const normX = waveformXToNorm(event.clientX);
   let markerId = getClosestWaveMarker(normX);
