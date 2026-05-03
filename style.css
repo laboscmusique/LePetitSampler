@@ -1326,8 +1326,8 @@ body.edition-drum .waveform-panel #changeSampleButton:hover {
 }
 
 .drum-pad.selected {
-  border-color: #ffb14d;
-  box-shadow: 0 0 0 8px rgba(255, 177, 77, 0.4);
+  border: 3px solid #ff7d3d;
+  box-shadow: 0 0 0 5px rgba(255, 125, 61, 0.35);
 }
 
 .drum-pad.active {
