@@ -59,6 +59,7 @@ const resoControl = document.getElementById("resoControl");
 const freqInput = document.getElementById("freqInput");
 const resoInput = document.getElementById("resoInput");
 const loopEnabledInput = document.getElementById("loopEnabled");
+const loopToggleLabel = document.getElementById("loopToggleLabel");
 const resetPlaybackPointsButton = document.getElementById("resetPlaybackPoints");
 const sampleStartInput = document.getElementById("sampleStartInput");
 const loopStartInput = document.getElementById("loopStartInput");
@@ -179,6 +180,7 @@ const translations = {
     "adsr.helper.direct": "Enveloppe bypassée: volume constant pendant l'appui, arrêt immédiat au relâchement.",
     "waveform.title": "Waveform",
     "waveform.loopEnabled": "Loop activée",
+    "waveform.loopDisabled": "Loop désactivée",
     "waveform.resetPoints": "Reset points",
     "waveform.help": "Drag sur la waveform: <strong>Sample Start</strong> (vert), <strong>Loop In</strong> et <strong>Loop Out</strong> (bleu).",
     "waveform.start": "Sample Start",
@@ -267,6 +269,7 @@ const translations = {
     "adsr.helper.direct": "Envelope bypassed: constant volume while held, immediate stop on release.",
     "waveform.title": "Waveform",
     "waveform.loopEnabled": "Loop enabled",
+    "waveform.loopDisabled": "Loop disabled",
     "waveform.resetPoints": "Reset points",
     "waveform.help": "Drag on the waveform: <strong>Sample Start</strong> (green), <strong>Loop In</strong> and <strong>Loop Out</strong> (blue).",
     "waveform.start": "Sample Start",
@@ -897,13 +900,13 @@ function syncPlaybackSliders() {
   sampleStartSlider.value = String(Math.round(playbackState.sampleStartNorm * 1000));
   loopStartSlider.value = String(Math.round(playbackState.loopStartNorm * 1000));
   loopEndSlider.value = String(Math.round(playbackState.loopEndNorm * 1000));
-
-  loopStartSlider.disabled = !playbackState.loopEnabled;
-  loopEndSlider.disabled = !playbackState.loopEnabled;
 }
 
 function updatePlaybackUi() {
   const duration = getDurationSeconds();
+  const hasSample = loadedBuffer !== null;
+  const loopOff = !playbackState.loopEnabled;
+
   const startSeconds = playbackState.sampleStartNorm * duration;
   const loopStartSeconds = playbackState.loopStartNorm * duration;
   const loopEndSeconds = playbackState.loopEndNorm * duration;
@@ -918,8 +921,25 @@ function updatePlaybackUi() {
   loopStartInput.max = maxSeconds.toFixed(2);
   loopEndInput.max = maxSeconds.toFixed(2);
 
-  loopStartInput.disabled = !playbackState.loopEnabled;
-  loopEndInput.disabled = !playbackState.loopEnabled;
+  sampleStartInput.disabled = !hasSample;
+  sampleStartSlider.disabled = !hasSample;
+  loopEnabledInput.disabled = !hasSample;
+  loopStartInput.disabled = !hasSample || loopOff;
+  loopEndInput.disabled = !hasSample || loopOff;
+
+  if (loopToggleLabel) {
+    loopToggleLabel.textContent = playbackState.loopEnabled ? t("waveform.loopEnabled") : t("waveform.loopDisabled");
+  }
+
+  document.querySelectorAll(".waveform-card--start").forEach((el) => {
+    el.classList.toggle("is-disabled", !hasSample);
+  });
+  document.querySelectorAll(".waveform-card--loop").forEach((el) => {
+    el.classList.toggle("is-disabled", !hasSample || loopOff);
+  });
+  document.querySelectorAll(".waveform-cards > .loop-toggle").forEach((el) => {
+    el.classList.toggle("is-disabled", !hasSample);
+  });
 
   syncPlaybackSliders();
 }

@@ -120,17 +120,18 @@
         <canvas id="waveform" width="960" height="220" aria-label="Waveform du sample"></canvas>
         <div class="wave-editor">
           <div class="wave-editor-top">
-            <label class="loop-toggle" for="loopEnabled">
-              <input id="loopEnabled" type="checkbox" />
-              <span data-i18n="waveform.loopEnabled">Loop activée</span>
-            </label>
             <button id="resetPlaybackPoints" type="button" class="reset-points" data-i18n="waveform.resetPoints">Reset points</button>
           </div>
           <p class="wave-editor-help" data-i18n-html="waveform.help">
             Drag sur la waveform: <strong>Sample Start</strong> (vert), <strong>Loop In</strong> et <strong>Loop Out</strong> (bleu).
           </p>
           <div class="waveform-cards" aria-live="polite">
-            <div class="waveform-card">
+            <label class="loop-toggle" for="loopEnabled">
+              <input id="loopEnabled" type="checkbox" />
+              <span id="loopToggleLabel">Loop désactivée</span>
+            </label>
+
+            <div class="waveform-card waveform-card--start">
               <div class="waveform-card-head">
                 <label for="sampleStartSlider" data-i18n="waveform.start">Sample Start</label>
                 <div class="waveform-value-row">
@@ -141,7 +142,7 @@
               <input id="sampleStartSlider" type="range" min="0" max="1000" step="1" value="0" class="waveform-slider" />
             </div>
 
-            <div class="waveform-card">
+            <div class="waveform-card waveform-card--loop">
               <div class="waveform-card-head">
                 <label for="loopStartSlider" data-i18n="waveform.loopIn">Loop In</label>
                 <div class="waveform-value-row">
@@ -152,7 +153,7 @@
               <input id="loopStartSlider" type="range" min="0" max="1000" step="1" value="0" class="waveform-slider" />
             </div>
 
-            <div class="waveform-card">
+            <div class="waveform-card waveform-card--loop">
               <div class="waveform-card-head">
                 <label for="loopEndSlider" data-i18n="waveform.loopOut">Loop Out</label>
                 <div class="waveform-value-row">

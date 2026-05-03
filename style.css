@@ -96,9 +96,9 @@ h2 {
 }
 
 .module-lime {
-  --module-accent: #77e086;
-  --module-accent-soft: #b8f0bf;
-  --module-accent-rgb: 119, 224, 134;
+  --module-accent: #ff7d3d;
+  --module-accent-soft: #ffb189;
+  --module-accent-rgb: 255, 125, 61;
 }
 
 .panel {
@@ -975,7 +975,24 @@ body.is-recording .performance-widget {
   margin-top: 8px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: auto auto;
   gap: 8px;
+}
+
+.waveform-cards > .loop-toggle {
+  grid-column: 2 / 4;
+}
+
+.waveform-card--start {
+  grid-row: 2;
+}
+
+.waveform-card.is-disabled {
+  opacity: 0.45;
+}
+
+.waveform-cards > .loop-toggle.is-disabled {
+  opacity: 0.45;
 }
 
 .waveform-card {
