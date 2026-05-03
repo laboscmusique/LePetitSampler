@@ -1,3 +1,22 @@
+/* ==========================================================================
+   LePetitSampler — Stylesheet
+   Sections:
+     1. Design tokens / Variables
+     2. Reset & Base
+     3. Layout (Grid shell, panels)
+     4. Locale selector
+     5. Form controls (inputs, selects, sliders)
+     6. Sample panel
+     7. ADSR module
+     8. Waveform / Playback
+     9. Filter module
+    10. Piano keyboard
+    11. Record modal
+    12. Performance widget
+    13. Responsive
+   ========================================================================== */
+
+/* 1. Design tokens */
 :root {
   --bg-0: #07090f;
   --bg-1: #101420;
@@ -14,6 +33,7 @@
   --danger: #ff4f59;
 }
 
+/* 2. Reset & Base */
 * {
   box-sizing: border-box;
 }
@@ -60,6 +80,7 @@ h2 {
 .sampler-shell {
   width: min(1250px, 96vw);
   margin: 24px auto 28px;
+  padding-bottom: 140px;
   display: grid;
   gap: 16px;
   grid-template-columns: 1fr;
@@ -93,6 +114,12 @@ h2 {
   --module-accent: #3eb8ff;
   --module-accent-soft: #94daff;
   --module-accent-rgb: 62, 184, 255;
+}
+
+.waveform-panel {
+  --module-accent: #77e086;
+  --module-accent-soft: #b8f0bf;
+  --module-accent-rgb: 119, 224, 134;
 }
 
 .module-lime {
@@ -142,20 +169,25 @@ h2 {
 }
 
 .locale-btn-group {
-  display: flex;
-  gap: 0;
-  border-radius: 999px;
-  overflow: hidden;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  border-radius: 12px;
+  padding: 4px;
+  min-width: 280px;
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .locale-btn {
   border: none;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.06);
   color: #eef3ff;
-  padding: 5px 12px;
+  padding: 6px 10px;
   font-size: 0.78rem;
   font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
   cursor: pointer;
   transition: background 120ms ease, color 120ms ease;
 }
@@ -165,6 +197,77 @@ h2 {
   color: #101420;
 }
 
+.edition-switch-panel {
+  padding: 16px 20px;
+}
+
+.edition-switch-control {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.edition-switch-group {
+  display: flex;
+  gap: 0;
+  width: min(560px, 50%);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+}
+
+.edition-switch-btn {
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: #eef3ff;
+  flex: 1;
+  min-height: 42px;
+  padding: 8px 16px;
+  font-size: clamp(0.92rem, 1.35vw, 1.05rem);
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.edition-switch-btn.active {
+  background: #b58bff;
+  color: #101420;
+}
+
+[data-edition-page].is-hidden-page {
+  display: none;
+}
+
+body.edition-chromatic .wave-editor-drum-only {
+  display: none;
+}
+
+body.edition-drum .wave-editor-drum-only {
+  display: block;
+}
+
+body.edition-drum #changeSampleButton.wave-editor-drum-only {
+  display: inline-flex;
+}
+
+body.edition-drum .waveform-cards {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: auto;
+}
+
+body.edition-drum .waveform-card--start {
+  grid-row: auto;
+}
+
+body.edition-drum .waveform-cards > .loop-toggle,
+body.edition-drum .waveform-card--loop,
+body.edition-drum #resetPlaybackPoints {
+  display: none;
+}
+
+/* 5. Form controls */
 select {
   appearance: none;
   -webkit-appearance: none;
@@ -177,6 +280,7 @@ select {
   transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
 }
 
+/* Select chevron */
 select {
   padding-right: 30px;
   background-image:
@@ -265,11 +369,17 @@ input[type="range"]::-moz-range-thumb {
 }
 
 #sampleFile {
-  display: none;
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
 }
 
+/* 6. Sample panel */
 .sample-actions {
-  margin-top: 18px;
+  margin-top: 10px;
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
@@ -278,8 +388,16 @@ input[type="range"]::-moz-range-thumb {
 .sample-panel {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  min-height: 250px;
+  justify-content: flex-start;
+  min-height: 0;
+}
+
+.app-edition-subtitle {
+  margin-top: 4px;
+  font-size: clamp(1.2rem, 2.2vw, 1.45rem);
+  color: #ffd84a;
+  font-weight: 800;
+  line-height: 1.2;
 }
 
 .volume-row {
@@ -302,6 +420,29 @@ input[type="range"]::-moz-range-thumb {
   font-size: 0.82rem;
   font-weight: 700;
   color: var(--module-accent);
+}
+
+.drum-title-panel {
+  display: block;
+  justify-content: flex-start;
+  min-height: 0;
+}
+
+.drum-title-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 50%);
+  align-items: start;
+  gap: 14px 24px;
+}
+
+.drum-title-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.drum-master-volume-row {
+  margin-top: 0;
 }
 
 .sample-action {
@@ -378,6 +519,7 @@ input[type="range"]::-moz-range-thumb {
   line-height: 1.45;
 }
 
+/* 11. Record modal */
 .record-modal {
   position: fixed;
   inset: 0;
@@ -620,6 +762,7 @@ body.is-recording .performance-widget {
   box-shadow: 0 0 0 2px rgba(255, 79, 89, 0.2);
 }
 
+/* 7. ADSR module */
 .adsr-panel,
 .filter-panel,
 .wave-editor {
@@ -820,6 +963,7 @@ body.is-recording .performance-widget {
   opacity: 0.45;
 }
 
+/* 9. Filter module */
 .filter-topbar {
   display: flex;
   align-items: center;
@@ -933,6 +1077,7 @@ body.is-recording .performance-widget {
   opacity: 0.45;
 }
 
+/* 8. Waveform / Playback */
 .waveform-panel canvas {
   width: 100%;
   height: 220px;
@@ -1039,6 +1184,22 @@ body.is-recording .performance-widget {
   font-weight: 700;
 }
 
+body.edition-drum .waveform-panel .waveform-card-head label,
+body.edition-drum .waveform-panel .waveform-value-row span,
+body.edition-drum .waveform-panel .reset-points {
+  color: #77e086;
+}
+
+body.edition-drum .waveform-panel #changeSampleButton {
+  color: #77e086;
+  border-color: rgba(119, 224, 134, 0.55);
+}
+
+body.edition-drum .waveform-panel #changeSampleButton:hover {
+  border-color: rgba(119, 224, 134, 0.78);
+  background: rgba(119, 224, 134, 0.14);
+}
+
 .waveform-slider {
   --module-accent: #77e086;
   --module-accent-soft: #b8f0bf;
@@ -1046,8 +1207,7 @@ body.is-recording .performance-widget {
   width: 100%;
 }
 
-
-
+/* 10. Piano keyboard */
 .piano {
   position: relative;
   width: 100%;
@@ -1118,15 +1278,457 @@ body.is-recording .performance-widget {
   box-shadow: none;
 }
 
+.drum-pads-panel {
+  min-height: 380px;
+}
+
+.drum-pads-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.drum-pads-head p {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.drum-pad-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 132px));
+  justify-content: center;
+  gap: 30px;
+  padding: 18px 30px 24px;
+}
+
+.drum-pad {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border: 1px solid #d6dbe8;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #1b2436;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  overflow: hidden;
+  transition: background 110ms ease, border-color 110ms ease, transform 80ms ease, box-shadow 110ms ease;
+}
+
+.drum-pad:hover {
+  border-color: #a9b8d8;
+  background: #ffffff;
+}
+
+.drum-pad.selected {
+  border-color: #ffb14d;
+  box-shadow: 0 0 0 2px rgba(255, 177, 77, 0.25);
+}
+
+.drum-pad.active {
+  transform: translateY(1px);
+  background: #f6f9ff;
+}
+
+.drum-pad-num {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #263250;
+  z-index: 2;
+}
+
+.drum-pad-shortcut {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 2px 7px;
+  color: #263250;
+  background: rgba(226, 233, 248, 0.92);
+  z-index: 2;
+}
+
+.drum-pad-wave {
+  position: absolute;
+  inset: 16% 10% 12%;
+  width: 80%;
+  height: 72%;
+  border-radius: 8px;
+  background: rgba(18, 26, 42, 0.06);
+  display: none;
+}
+
+.drum-pad-title {
+  display: none;
+}
+
+.drum-pad-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #2a3756;
+  text-align: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.drum-pad.has-sample .drum-pad-empty {
+  display: none;
+}
+
+.drum-pad.has-sample .drum-pad-wave {
+  display: block;
+}
+
 button:focus-visible,
 a:focus-visible {
   outline: 2px solid #fff;
   outline-offset: 2px;
 }
 
+.sample-source-actions {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.sample-source-card {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.sample-source-card .sample-source-actions {
+  margin-top: 16px;
+  gap: 12px;
+}
+
+.sample-source-card .sample-action {
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.sample-source-card .sample-load {
+  background: #ff7d3d;
+  color: #101420;
+}
+
+.sample-source-card .sample-load:hover {
+  background: #ffb189;
+}
+
+.sample-source-card .sample-record {
+  background: #1a2338;
+  color: #eef3ff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.sample-source-card .sample-record:hover {
+  border-color: rgba(255, 255, 255, 0.45);
+  background: #232f49;
+}
+
+.sample-file-input {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.sequencer-panel {
+  padding: 14px 18px;
+}
+
+.seq-body {
+  margin-top: 10px;
+}
+
+.seq-collapsed .seq-body {
+  display: none;
+}
+
+.seq-collapsed .sequencer-controls {
+  display: none;
+}
+
+.seq-btn--toggle {
+  background: rgba(255, 255, 255, 0.07);
+  color: #f3f6ff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.seq-btn--toggle:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.sequencer-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.sequencer-head h2 {
+  font-size: 1.3rem;
+  margin: 0;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.sequencer-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+
+.seq-collapsed .sequencer-controls {
+  display: none;
+}
+
+.seq-btn--toggle {
+  background: rgba(255, 255, 255, 0.07);
+  color: #f3f6ff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.sequencer-head h2 {
+  font-size: 1.3rem;
+  margin: 0;
+  cursor: pointer;
+}
+
+.sequencer-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sequencer-bpm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sequencer-bpm label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #e7edff;
+}
+
+.sequencer-bpm input[type="number"] {
+  width: 58px;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: #f5f7ff;
+  padding: 4px 6px;
+  font-size: 0.83rem;
+}
+
+.seq-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.seq-btn--play {
+  background: var(--module-accent);
+  color: #101420;
+}
+
+.seq-btn--play:hover {
+  background: var(--module-accent-soft);
+}
+
+.seq-btn--play.seq-btn--active {
+  background: #4dff6a;
+  color: #101420;
+  box-shadow: 0 0 0 2px rgba(77, 255, 106, 0.3);
+}
+
+.seq-btn--stop {
+  background: rgba(255, 255, 255, 0.08);
+  color: #eef3ff;
+}
+
+.seq-btn--stop:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.seq-btn--clear {
+  background: rgba(255, 255, 255, 0.06);
+  color: #c0c8e0;
+  font-size: 0.75rem;
+}
+
+.seq-btn--clear:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.seq-grid-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+  display: flex;
+  justify-content: center;
+}
+
+.seq-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: max-content;
+}
+
+.seq-row {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.seq-row-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--muted);
+  width: 32px;
+  min-width: 32px;
+  text-align: right;
+  padding-right: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seq-cell {
+  width: 22px;
+  height: 24px;
+  min-width: 22px;
+  border: none;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  padding: 0;
+  transition: background 80ms ease;
+}
+
+.seq-cell:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.seq-cell--on {
+  background: var(--module-accent);
+}
+
+.seq-cell--on:hover {
+  background: var(--module-accent-soft);
+}
+
+.seq-cell--beat-start {
+  margin-left: 3px;
+}
+
+.seq-cell--measure-start {
+  margin-left: 6px;
+}
+
+.seq-cell--current {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6);
+}
+
+.seq-cell--on.seq-cell--current {
+  background: #fff;
+}
+
+.seq-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.seq-btn--export {
+  background: rgba(255, 255, 255, 0.08);
+  color: #eef3ff;
+  font-size: 0.78rem;
+}
+
+.seq-btn--export:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.seq-btn--loading {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.seq-toast {
+  position: fixed;
+  bottom: 70px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: #1a2338;
+  color: #f2f5ff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  padding: 10px 20px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  z-index: 2000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms ease, transform 300ms ease;
+}
+
+.seq-toast--visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* 13. Responsive */
 @media (min-width: 920px) {
-  .sampler-shell {
+/* 3. Layout */
+.sampler-shell {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .edition-switch-panel,
+  .keyboard-panel,
+  .drum-pads-panel,
+  .drum-title-panel,
+  .sequencer-panel {
+    grid-column: 1 / -1;
   }
 
   .sample-panel {
@@ -1145,22 +1747,75 @@ a:focus-visible {
     grid-column: 2 / 3;
   }
 
-  .keyboard-panel {
-    grid-column: 1 / -1;
+  body.edition-drum .sampler-shell {
+    grid-template-areas:
+      "switch switch"
+      "title title"
+      "wave adsr"
+      "pads pads"
+      "seq seq";
   }
+
+  body.edition-drum .edition-switch-panel {
+    grid-area: switch;
+  }
+
+  body.edition-drum .drum-title-panel {
+    grid-area: title;
+  }
+
+  body.edition-drum .waveform-panel {
+    grid-area: wave;
+  }
+
+  body.edition-drum .adsr-module {
+    grid-area: adsr;
+  }
+
+  body.edition-drum .drum-pads-panel {
+    grid-area: pads;
+  }
+
+  body.edition-drum .sequencer-panel {
+    grid-area: seq;
+  }
+
 }
 
 @media (max-width: 640px) {
-  .locale-box {
+/* 4. Locale selector */
+.locale-box {
     position: fixed;
     left: 10px;
     bottom: 10px;
     grid-template-columns: 1fr;
-    width: min(200px, calc(100vw - 20px));
+    width: min(320px, calc(100vw - 20px));
+  }
+
+  .locale-btn-group {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-width: 0;
   }
 
   .panel {
     padding: 14px;
+  }
+
+  .edition-switch-control {
+    justify-content: flex-end;
+  }
+
+  .edition-switch-group {
+    width: 100%;
+  }
+
+  .edition-switch-btn {
+    flex: 1;
+    text-align: center;
+  }
+
+  .drum-title-layout {
+    grid-template-columns: 1fr;
   }
 
   .piano {
@@ -1175,6 +1830,13 @@ a:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .drum-pad-grid {
+    grid-template-columns: repeat(2, minmax(0, 126px));
+    justify-content: center;
+    gap: 22px;
+    padding: 12px 16px 16px;
+  }
+
   .performance-exports {
     grid-template-columns: 1fr;
   }
@@ -1183,7 +1845,19 @@ a:focus-visible {
     grid-template-columns: 1fr;
   }
 
-  .performance-widget {
+  .seq-cell {
+    width: 16px;
+    height: 20px;
+  }
+
+  .seq-row-label {
+    font-size: 0.6rem;
+    width: 22px;
+    min-width: 22px;
+  }
+
+/* 12. Performance widget */
+.performance-widget {
     right: 10px;
     left: 10px;
     width: auto;

@@ -1,0 +1,16 @@
+{
+  "name": "le-petit-sampler",
+  "version": "1.0.0",
+  "description": "A browser-based sampler — load a sample tuned in C3 and play it at different pitches.",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "esbuild src/main.js --bundle --outfile=app.js --format=iife --target=es2020",
+    "dev": "npm run build -- --watch --servedir=.",
+    "start": "npm run build && npx serve ."
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0",
+    "serve": "^14.2.0"
+  }
+}

@@ -20,18 +20,31 @@
           <div class="locale-btn-group">
             <button type="button" class="locale-btn active" data-lang="fr">Français</button>
             <button type="button" class="locale-btn" data-lang="en">English</button>
+            <button type="button" class="locale-btn" data-lang="de">Deutsch</button>
+            <button type="button" class="locale-btn" data-lang="es">Español</button>
+            <button type="button" class="locale-btn" data-lang="it">Italiano</button>
+            <button type="button" class="locale-btn" data-lang="pt">Português</button>
           </div>
         </div>
       </section>
 
-      <section class="panel sample-panel module module-sun">
-        <h1 data-i18n="app.title">Mini Sampler</h1>
+      <section class="panel edition-switch-panel module module-lime" aria-label="Page selection">
+        <div class="edition-switch-control">
+          <div class="edition-switch-group">
+            <button type="button" class="edition-switch-btn active" data-page="chromatic" data-i18n="edition.chromatic" aria-pressed="true">Chromatic Edition</button>
+            <button type="button" class="edition-switch-btn" data-page="drum" data-i18n="edition.drum" aria-pressed="false">Drum Edition</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel sample-panel module module-sun" data-edition-page="chromatic">
+        <h1 data-i18n="app.title">LePetitSampler</h1>
+        <p class="app-edition-subtitle"><strong data-i18n="app.editionSubtitle">Chromatic Edition</strong></p>
 
         <div class="sample-actions">
           <button id="loadSampleButton" type="button" class="sample-action sample-load" data-i18n="actions.loadSample">Charger un sample</button>
           <button id="openRecordModalButton" type="button" class="sample-action sample-record" data-i18n="actions.recordSample">Enregistrer un sample</button>
         </div>
-        <input id="sampleFile" type="file" accept="audio/*" />
 
         <div class="status-row">
           <p id="sampleName" class="status">Aucun sample chargé</p>
@@ -41,6 +54,21 @@
           <label for="volumeControl" data-i18n="volume.label">Volume</label>
           <input id="volumeControl" type="range" min="0" max="300" step="1" value="100" />
           <span id="volumeValue">100%</span>
+        </div>
+      </section>
+
+      <section class="panel drum-title-panel module module-sun is-hidden-page" data-edition-page="drum" aria-hidden="true">
+        <div class="drum-title-layout">
+          <div class="drum-title-copy">
+            <h1 data-i18n="app.drumTitle">LePetitSampler</h1>
+            <p class="app-edition-subtitle"><strong data-i18n="edition.drum">Drum Edition</strong></p>
+          </div>
+
+          <div class="volume-row drum-master-volume-row">
+            <label for="drumVolumeControl" data-i18n="volume.global">Volume general</label>
+            <input id="drumVolumeControl" type="range" min="0" max="300" step="1" value="100" />
+            <span id="drumVolumeValue">100%</span>
+          </div>
         </div>
       </section>
 
@@ -114,6 +142,7 @@
         <div class="wave-editor">
           <div class="wave-editor-top">
             <button id="resetPlaybackPoints" type="button" class="reset-points" data-i18n="waveform.resetPoints">Reset points</button>
+            <button id="changeSampleButton" type="button" class="reset-points wave-editor-drum-only" data-i18n="waveform.changeSample">Changer le sample</button>
           </div>
           <p class="wave-editor-help" data-i18n-html="waveform.help">
             Drag sur la waveform: <strong>Sample Start</strong> (vert), <strong>Loop In</strong> et <strong>Loop Out</strong> (bleu).
@@ -133,6 +162,28 @@
                 </div>
               </div>
               <input id="sampleStartSlider" type="range" min="0" max="1000" step="1" value="0" class="waveform-slider" />
+            </div>
+
+            <div class="waveform-card wave-editor-drum-only">
+              <div class="waveform-card-head">
+                <label for="drumPadVolumeSlider" data-i18n="waveform.padVolume">Volume du pad</label>
+                <div class="waveform-value-row">
+                  <input id="drumPadVolumeInput" type="number" min="0" max="300" step="1" value="100" />
+                  <span>%</span>
+                </div>
+              </div>
+              <input id="drumPadVolumeSlider" type="range" min="0" max="300" step="1" value="100" class="waveform-slider waveform-slider--drum" />
+            </div>
+
+            <div class="waveform-card wave-editor-drum-only">
+              <div class="waveform-card-head">
+                <label for="drumPadPitchSlider" data-i18n="waveform.pitch">Pitch</label>
+                <div class="waveform-value-row">
+                  <input id="drumPadPitchInput" type="number" min="-24" max="24" step="1" value="0" />
+                  <span>st</span>
+                </div>
+              </div>
+              <input id="drumPadPitchSlider" type="range" min="-24" max="24" step="1" value="0" class="waveform-slider waveform-slider--drum" />
             </div>
 
             <div class="waveform-card waveform-card--loop">
@@ -160,7 +211,7 @@
         </div>
       </section>
 
-      <section class="panel filter-module module module-ice">
+      <section class="panel filter-module module module-ice" data-edition-page="chromatic">
         <div class="filter-panel">
           <h2 class="panel-title" data-i18n="filter.summary">Filtre</h2>
 
@@ -205,7 +256,7 @@
         </div>
       </section>
 
-      <section class="panel keyboard-panel module module-lime">
+      <section class="panel keyboard-panel module module-lime" data-edition-page="chromatic">
         <div class="keyboard-head">
           <h2 data-i18n="keyboard.title">Keyboard</h2>
           <div class="keyboard-octave-control">
@@ -219,7 +270,97 @@
         </div>
         <div id="pianoKeyboard" class="piano" aria-label="Clavier piano interactif"></div>
       </section>
+
+      <section class="panel drum-pads-panel module module-lime is-hidden-page" data-edition-page="drum" aria-hidden="true">
+        <div class="drum-pads-head">
+          <h2 data-i18n="drum.padsTitle">Pads</h2>
+        </div>
+        <div id="drumPadGrid" class="drum-pad-grid" aria-label="Pads drum edition">
+          <button type="button" class="drum-pad selected" data-drum-pad-index="0" data-drum-key-qwerty="A" data-drum-key-azerty="Q">
+            <span class="drum-pad-num">1</span>
+            <canvas class="drum-pad-wave" width="200" height="80" aria-hidden="true"></canvas>
+            <span class="drum-pad-shortcut">A</span>
+            <span class="drum-pad-title">Pad 1</span>
+            <span class="drum-pad-empty" data-i18n="drum.clickToAdd">Click to add</span>
+          </button>
+          <button type="button" class="drum-pad" data-drum-pad-index="1" data-drum-key-qwerty="S" data-drum-key-azerty="S">
+            <span class="drum-pad-num">2</span>
+            <canvas class="drum-pad-wave" width="200" height="80" aria-hidden="true"></canvas>
+            <span class="drum-pad-shortcut">S</span>
+            <span class="drum-pad-title">Pad 2</span>
+            <span class="drum-pad-empty" data-i18n="drum.clickToAdd">Click to add</span>
+          </button>
+          <button type="button" class="drum-pad" data-drum-pad-index="2" data-drum-key-qwerty="D" data-drum-key-azerty="D">
+            <span class="drum-pad-num">3</span>
+            <canvas class="drum-pad-wave" width="200" height="80" aria-hidden="true"></canvas>
+            <span class="drum-pad-shortcut">D</span>
+            <span class="drum-pad-title">Pad 3</span>
+            <span class="drum-pad-empty" data-i18n="drum.clickToAdd">Click to add</span>
+          </button>
+          <button type="button" class="drum-pad" data-drum-pad-index="3" data-drum-key-qwerty="F" data-drum-key-azerty="F">
+            <span class="drum-pad-num">4</span>
+            <canvas class="drum-pad-wave" width="200" height="80" aria-hidden="true"></canvas>
+            <span class="drum-pad-shortcut">F</span>
+            <span class="drum-pad-title">Pad 4</span>
+            <span class="drum-pad-empty" data-i18n="drum.clickToAdd">Click to add</span>
+          </button>
+          <button type="button" class="drum-pad" data-drum-pad-index="4" data-drum-key-qwerty="G" data-drum-key-azerty="G">
+            <span class="drum-pad-num">5</span>
+            <canvas class="drum-pad-wave" width="200" height="80" aria-hidden="true"></canvas>
+            <span class="drum-pad-shortcut">G</span>
+            <span class="drum-pad-title">Pad 5</span>
+            <span class="drum-pad-empty" data-i18n="drum.clickToAdd">Click to add</span>
+          </button>
+          <button type="button" class="drum-pad" data-drum-pad-index="5" data-drum-key-qwerty="H" data-drum-key-azerty="H">
+            <span class="drum-pad-num">6</span>
+            <canvas class="drum-pad-wave" width="200" height="80" aria-hidden="true"></canvas>
+            <span class="drum-pad-shortcut">H</span>
+            <span class="drum-pad-title">Pad 6</span>
+            <span class="drum-pad-empty" data-i18n="drum.clickToAdd">Click to add</span>
+          </button>
+          <button type="button" class="drum-pad" data-drum-pad-index="6" data-drum-key-qwerty="J" data-drum-key-azerty="J">
+            <span class="drum-pad-num">7</span>
+            <canvas class="drum-pad-wave" width="200" height="80" aria-hidden="true"></canvas>
+            <span class="drum-pad-shortcut">J</span>
+            <span class="drum-pad-title">Pad 7</span>
+            <span class="drum-pad-empty" data-i18n="drum.clickToAdd">Click to add</span>
+          </button>
+          <button type="button" class="drum-pad" data-drum-pad-index="7" data-drum-key-qwerty="K" data-drum-key-azerty="K">
+            <span class="drum-pad-num">8</span>
+            <canvas class="drum-pad-wave" width="200" height="80" aria-hidden="true"></canvas>
+            <span class="drum-pad-shortcut">K</span>
+            <span class="drum-pad-title">Pad 8</span>
+            <span class="drum-pad-empty" data-i18n="drum.clickToAdd">Click to add</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="panel sequencer-panel module module-lime is-hidden-page seq-collapsed" data-edition-page="drum" aria-hidden="true">
+        <div class="sequencer-head">
+          <h2 data-i18n="sequencer.title">Sequenceur</h2>
+          <div class="sequencer-controls">
+            <div class="sequencer-bpm">
+              <label for="seqBpmInput" data-i18n="sequencer.bpm">BPM</label>
+              <input id="seqBpmInput" type="number" min="40" max="240" step="1" value="120" />
+            </div>
+            <button type="button" id="seqPlayBtn" class="seq-btn seq-btn--play" data-i18n="sequencer.play">Play</button>
+            <button type="button" id="seqStopBtn" class="seq-btn seq-btn--stop" data-i18n="sequencer.stop">Stop</button>
+            <button type="button" id="seqClearBtn" class="seq-btn seq-btn--clear" data-i18n="sequencer.clear">Clear</button>
+          </div>
+          <button type="button" id="seqToggleBtn" class="seq-btn seq-btn--toggle">+</button>
+        </div>
+        <div class="seq-body">
+        <div class="seq-grid-scroll">
+          <div id="sequencerGrid" class="seq-grid" aria-label="Sequenceur grille"></div>
+        </div>
+        <div class="seq-footer">
+          <button type="button" id="seqExportBtn" class="seq-btn seq-btn--export" data-i18n="sequencer.export">Exporter</button>
+        </div>
+        </div>
+      </section>
     </main>
+
+    <input id="sampleFile" class="sample-file-input" type="file" accept="audio/*" aria-hidden="true" tabindex="-1" />
 
     <div id="recordModal" class="record-modal hidden" role="dialog" aria-modal="true" aria-labelledby="recordModalTitle">
       <div class="record-modal-card">
@@ -244,6 +385,20 @@
           <span id="recordTimer" class="record-timer">00:00</span>
         </div>
         <p id="recordStatus" class="record-status">Prêt à enregistrer</p>
+      </div>
+    </div>
+
+    <div id="sampleSourceModal" class="record-modal hidden" role="dialog" aria-modal="true" aria-labelledby="sampleSourceTitle">
+      <div class="record-modal-card sample-source-card">
+        <div class="record-modal-head">
+          <h2 id="sampleSourceTitle" data-i18n="sampleSource.title">Ajouter un sample</h2>
+          <button id="closeSampleSourceModalButton" type="button" class="record-close" data-i18n="recordModal.close">Fermer</button>
+        </div>
+        <p id="sampleSourcePadLabel" class="record-permission-hint" data-i18n="sampleSource.padLabel">Pad selectionne</p>
+        <div class="sample-source-actions">
+          <button id="sampleSourceLoadButton" type="button" class="sample-action sample-load" data-i18n="sampleSource.load">Charger un sample</button>
+          <button id="sampleSourceRecordButton" type="button" class="sample-action sample-record" data-i18n="sampleSource.record">Enregistrer un sample</button>
+        </div>
       </div>
     </div>
 
